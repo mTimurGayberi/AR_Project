@@ -1,0 +1,27 @@
+# Node Dependencies
+node_modules/
+package-lock.json
+
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Mattercraft Build / Output folders (if doing local builds)
+dist/
+build/
+.next/
+out/
+
+# Environment Variables & Secrets
+.env
+.env.local
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
