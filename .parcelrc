@@ -1,0 +1,11 @@
+{
+  "extends": "@parcel/config-default",
+  "transformers": {
+    "*.zcomp": ["@zappar/parcel-transformer-mattercraft"],
+    "*.zvalues": ["@zappar/parcel-transformer-mattercraft"]
+  },
+  "optimizers": {
+    "*.glb": ["@zappar/parcel-optimizer-mattercraft"],
+    "*.{png,jpg,jpeg,webp}": ["@zappar/parcel-optimizer-mattercraft"]
+  }
+}

@@ -25,3 +25,9 @@ out/
 *.njsproj
 *.sln
 *.sw?
+
+# Archives and Caches
+*.zip
+*.rar
+*.tar.gz
+.parcel-cache/
