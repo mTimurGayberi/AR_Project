@@ -22,14 +22,20 @@
 		"DirectionalLight": {
 			"857f9901b65b42c89a3ff04470d70738": true
 		},
+		"Ground Anchor": {
+			"7cbeb4f4351046cca1dfb5003bebc0f7": true
+		},
 		"Group": {
 			"root": true
 		},
-		"PerspectiveCamera": {
-			"37e06ac116b0421698ef7a3df6802e38": true
-		},
 		"ShadowPlane": {
 			"bf1d127bf7234511b3cdc3d5a98af7b0": true
+		},
+		"WorldTracker": {
+			"79f854d5bb6b4a0b84ba0a71efacb9cc": true
+		},
+		"ZapparCamera": {
+			"ef58d7d572f244dd99ff82af20165930": true
 		}
 	},
 	"entitiesByScriptName": {
@@ -51,11 +57,17 @@
 		"DirectionalLight": {
 			"857f9901b65b42c89a3ff04470d70738": true
 		},
-		"PerspectiveCamera": {
-			"37e06ac116b0421698ef7a3df6802e38": true
+		"Ground_Anchor": {
+			"7cbeb4f4351046cca1dfb5003bebc0f7": true
 		},
 		"ShadowPlane": {
 			"bf1d127bf7234511b3cdc3d5a98af7b0": true
+		},
+		"WorldTracker": {
+			"79f854d5bb6b4a0b84ba0a71efacb9cc": true
+		},
+		"ZapparCamera": {
+			"ef58d7d572f244dd99ff82af20165930": true
 		}
 	},
 	"entityConstructorProps": {
@@ -63,17 +75,21 @@
 		},
 		"194aae695cba4b60a35c287f3e37fbcf": {
 		},
-		"37e06ac116b0421698ef7a3df6802e38": {
-		},
 		"52148d8eafe3426085e700e049662c07": {
 		},
+		"79f854d5bb6b4a0b84ba0a71efacb9cc": {
+		},
 		"7b6fb4d895774174b5d151eec86b704c": {
+		},
+		"7cbeb4f4351046cca1dfb5003bebc0f7": {
 		},
 		"857f9901b65b42c89a3ff04470d70738": {
 		},
 		"a57f5d58e38e4a0b918dcf605ea12736": {
 		},
 		"bf1d127bf7234511b3cdc3d5a98af7b0": {
+		},
+		"ef58d7d572f244dd99ff82af20165930": {
 		}
 	},
 	"entityPropOverrides": {
@@ -128,25 +144,27 @@
 		"194aae695cba4b60a35c287f3e37fbcf": {
 			"position": [
 				0,
-				0.7863417862867201,
-				0
-			]
-		},
-		"37e06ac116b0421698ef7a3df6802e38": {
-			"position": [
 				0,
-				1.7095826973758346,
-				3.062317651416838
+				0
 			],
 			"rotation": [
-				-0.28265263978917693,
+				0,
 				0,
 				0
+			],
+			"scale": [
+				1,
+				1,
+				1
 			]
 		},
 		"52148d8eafe3426085e700e049662c07": {
 		},
+		"79f854d5bb6b4a0b84ba0a71efacb9cc": {
+		},
 		"7b6fb4d895774174b5d151eec86b704c": {
+		},
+		"7cbeb4f4351046cca1dfb5003bebc0f7": {
 		},
 		"857f9901b65b42c89a3ff04470d70738": {
 			"castShadow": true,
@@ -159,6 +177,8 @@
 		"a57f5d58e38e4a0b918dcf605ea12736": {
 		},
 		"bf1d127bf7234511b3cdc3d5a98af7b0": {
+		},
+		"ef58d7d572f244dd99ff82af20165930": {
 		}
 	},
 	"id": "5d4513e843574c04847bf1474912090f",
@@ -177,21 +197,11 @@
 			"id": "194aae695cba4b60a35c287f3e37fbcf",
 			"label": "Box",
 			"parent": {
-				"id": "root",
-				"order": "ZzV"
+				"id": "79f854d5bb6b4a0b84ba0a71efacb9cc",
+				"order": "Zz"
 			},
 			"scriptName": "Box",
 			"type": "@zcomponent/three/lib/components/meshes/Box#Box"
-		},
-		"37e06ac116b0421698ef7a3df6802e38": {
-			"id": "37e06ac116b0421698ef7a3df6802e38",
-			"label": "PerspectiveCamera",
-			"parent": {
-				"id": "root",
-				"order": "Zz"
-			},
-			"scriptName": "PerspectiveCamera",
-			"type": "@zcomponent/three/lib/components/cameras/PerspectiveCamera#PerspectiveCamera"
 		},
 		"52148d8eafe3426085e700e049662c07": {
 			"id": "52148d8eafe3426085e700e049662c07",
@@ -203,6 +213,16 @@
 			"scriptName": "DefaultLoader",
 			"type": "@zcomponent/core/lib/components/DefaultLoader#DefaultLoader"
 		},
+		"79f854d5bb6b4a0b84ba0a71efacb9cc": {
+			"id": "79f854d5bb6b4a0b84ba0a71efacb9cc",
+			"label": "WorldTracker",
+			"parent": {
+				"id": "root",
+				"order": "a2"
+			},
+			"scriptName": "WorldTracker",
+			"type": "@zcomponent/zappar-three/lib/components/trackers/WorldTracker#WorldTracker"
+		},
 		"7b6fb4d895774174b5d151eec86b704c": {
 			"id": "7b6fb4d895774174b5d151eec86b704c",
 			"label": "Defaults",
@@ -212,6 +232,16 @@
 			},
 			"scriptName": "Defaults",
 			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"7cbeb4f4351046cca1dfb5003bebc0f7": {
+			"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+			"label": "Ground Anchor",
+			"parent": {
+				"id": "79f854d5bb6b4a0b84ba0a71efacb9cc",
+				"order": "a0"
+			},
+			"scriptName": "Ground_Anchor",
+			"type": "@zcomponent/zappar-three/lib/components/anchorgroups/GroundAnchorGroup#GroundAnchorGroup"
 		},
 		"857f9901b65b42c89a3ff04470d70738": {
 			"id": "857f9901b65b42c89a3ff04470d70738",
@@ -243,6 +273,16 @@
 			},
 			"scriptName": "ShadowPlane",
 			"type": "@zcomponent/three/lib/components/meshes/ShadowPlane#ShadowPlane"
+		},
+		"ef58d7d572f244dd99ff82af20165930": {
+			"id": "ef58d7d572f244dd99ff82af20165930",
+			"label": "ZapparCamera",
+			"parent": {
+				"id": "root",
+				"order": "a1"
+			},
+			"scriptName": "ZapparCamera",
+			"type": "@zcomponent/zappar-three/lib/components/cameras/Camera#ZapparCamera"
 		},
 		"root": {
 			"id": "root",

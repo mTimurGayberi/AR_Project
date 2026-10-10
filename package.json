@@ -1,26 +1,28 @@
 {
-	"name": "template-simple_threejs",
-	"version": "1.0.0",
-	"description": "",
-	"scripts": {
-		"start": "parcel index.html --https"
-	},
-	"author": "",
-	"license": "ISC",
-	"dependencies": {
-		"@zcomponent/core": "1.x",
-		"@zcomponent/html": "1.x",
-		"@zcomponent/three": "1.x",
-		"three": "0.150.1"
-	},
-	"devDependencies": {
-		"@types/three": "0.150.1",
-		"@zappar/parcel-optimizer-mattercraft": "^0.6.1",
-		"@zappar/parcel-transformer-mattercraft": "^1.5.1",
-		"buffer": "^6.0.3",
-		"parcel": "^2.16.4",
-		"path-browserify": "^1.0.1",
-		"process": "^0.11.10",
-		"typescript": "4.8.4"
-	}
+  "name": "template-simple_threejs",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "parcel index.html --https"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@zcomponent/core": "1.x",
+    "@zcomponent/html": "1.x",
+    "@zcomponent/three": "1.x",
+    "three": "0.150.1",
+    "@zcomponent/zappar-three": "^4.3.4",
+    "@zcomponent/physics": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.150.1",
+    "@zappar/parcel-optimizer-mattercraft": "^0.6.1",
+    "@zappar/parcel-transformer-mattercraft": "^1.5.1",
+    "buffer": "^6.0.3",
+    "parcel": "^2.16.4",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "typescript": "4.8.4"
+  }
 }

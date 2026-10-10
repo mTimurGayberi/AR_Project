@@ -6,8 +6,10 @@ import { DefaultEnvironment as DefaultEnvironment_2 } from "@zcomponent/three/li
 import { DefaultLoader as DefaultLoader_3 } from "@zcomponent/core/lib/components/DefaultLoader";
 import { Group as Group_4 } from "@zcomponent/three/lib/components/Group";
 import { DirectionalLight as DirectionalLight_5 } from "@zcomponent/three/lib/components/lights/DirectionalLight";
-import { PerspectiveCamera as PerspectiveCamera_6 } from "@zcomponent/three/lib/components/cameras/PerspectiveCamera";
-import { ShadowPlane as ShadowPlane_7 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
+import { ShadowPlane as ShadowPlane_6 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
+import { ZapparCamera as ZapparCamera_7 } from "@zcomponent/zappar-three/lib/components/cameras/Camera";
+import { WorldTracker as WorldTracker_8 } from "@zcomponent/zappar-three/lib/components/trackers/WorldTracker";
+import { GroundAnchorGroup as GroundAnchorGroup_9 } from "@zcomponent/zappar-three/lib/components/anchorgroups/GroundAnchorGroup";
 
 interface ConstructorProps {
 
@@ -53,12 +55,22 @@ declare class Comp extends ZComponent {
 
 			}
 		},
-		PerspectiveCamera: PerspectiveCamera_6 & {
+		ShadowPlane: ShadowPlane_6 & {
 			behaviors: {
 
 			}
 		},
-		ShadowPlane: ShadowPlane_7 & {
+		ZapparCamera: ZapparCamera_7 & {
+			behaviors: {
+
+			}
+		},
+		WorldTracker: WorldTracker_8 & {
+			behaviors: {
+
+			}
+		},
+		Ground_Anchor: GroundAnchorGroup_9 & {
 			behaviors: {
 
 			}
