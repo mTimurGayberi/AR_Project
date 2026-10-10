@@ -9,6 +9,15 @@ This is a WebAR project built with Zapworks Mattercraft for the LABXR course.
 - `src/SaveManager.ts`: Handles saving and loading the game state via browser `localStorage`.
 - `assets/`: (To be added) This is where all 3D models (.gltf/.glb), audio, and images will go.
 
+## Workflow for Artists (Image Tracking)
+
+Since our 10 mini-games are spread across different physical rooms, we are using **Image Tracking** to anchor the 3D models to reality. 
+
+1. **Create the Markers:** For each mini-game, design a unique 2D image (like a poster, magical rune, or painting).
+2. **Deliver the Files:** Provide the Lead Programmer with both the 2D image (`.jpg` or `.png`) AND the 3D assets (`.glb` or `.gltf`) for that specific mini-game.
+3. **Physical Placement:** The 2D images must be printed out and placed in the real-world physical rooms. 
+4. **Design Consideration:** When creating the 3D animations and models, remember they will spawn directly on top of the 2D printed marker when the player scans it with their phone!
+
 ## Workflow for the Lead Programmer
 
 1. Receive `.gltf` or `.glb` files from the art team (via GitHub, Discord, or Google Drive).
