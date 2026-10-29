@@ -1,4 +1,4 @@
-import { initialize, useScene } from "@zcomponent/three";
+import { initialize, useScene, useCamera } from "@zcomponent/three";
 import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/GameManager";
 import { MazeGame } from "./src/MazeGame";
@@ -111,7 +111,16 @@ const instance = result.rootInstance;
 const threeScene = useScene(result.contextManager);
 console.log("Scene initialized successfully!", instance, threeScene);
 
-// Attach MazeGame directly to the Three.js scene so it renders in front of the camera!
+// Link active AR camera for physical 1:1 room-scale walking
+const cameraObservable = useCamera(result.contextManager);
+if (cameraObservable.value) {
+    mazeGame.setCamera(cameraObservable.value);
+}
+cameraObservable.addListener((activeCam) => {
+    mazeGame.setCamera(activeCam);
+});
+
+// Attach MazeGame directly to the Three.js scene
 mazeGame.init(threeScene);
 mazeGame.start();
 
