@@ -156,6 +156,12 @@ threeScene.add(placementReticle);
 
 // Setup Teeter Tower Scan & Place UI
 function setupTeeterTowerScanUI() {
+    let scanStep = 1;
+    let corner1Pos: THREE.Vector3 | null = null;
+    let corner1Marker: THREE.Mesh | null = null;
+    const markerGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.05, 24);
+    const markerMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+
     // 1. Scanning Instruction Banner
     const scanPrompt = document.createElement('div');
     scanPrompt.id = 'scan-prompt';
@@ -173,15 +179,13 @@ function setupTeeterTowerScanUI() {
     scanPrompt.style.textAlign = 'center';
     scanPrompt.style.boxShadow = '0 6px 20px rgba(0,0,0,0.5)';
     scanPrompt.style.zIndex = '1200';
-    scanPrompt.style.pointerEvents = 'none';
-    scanPrompt.innerText = '📱 Move phone slowly across floor to scan room';
     (scanPrompt.style as any).backdropFilter = 'blur(6px)';
     document.body.appendChild(scanPrompt);
 
-    // 2. Large "Tap to Place" Button
+    // 2. Large Action Button
     const placeButton = document.createElement('button');
     placeButton.id = 'place-maze-btn';
-    placeButton.innerText = '📍 Tap to Place Maze';
+    placeButton.innerText = '📍 Set Room Corner 1';
     placeButton.style.position = 'fixed';
     placeButton.style.bottom = '40px';
     placeButton.style.left = '50%';
@@ -199,9 +203,11 @@ function setupTeeterTowerScanUI() {
     placeButton.style.letterSpacing = '0.5px';
     document.body.appendChild(placeButton);
 
+    scanPrompt.innerText = '📐 Aim circle at Corner 1 of your room & tap';
+
     // 3. Relocate button (re-open scanning)
     const moveBtn = document.createElement('button');
-    moveBtn.innerText = '🔄 Relocate';
+    moveBtn.innerText = '🔄 Recalibrate Room';
     moveBtn.style.position = 'fixed';
     moveBtn.style.bottom = '15px';
     moveBtn.style.left = '15px';
@@ -215,32 +221,60 @@ function setupTeeterTowerScanUI() {
     moveBtn.style.display = 'none';
     moveBtn.style.cursor = 'pointer';
     moveBtn.onclick = () => {
+        scanStep = 1;
+        corner1Pos = null;
         isMazePlaced = false;
         mazeGame.container.visible = false;
+        if (corner1Marker) corner1Marker.visible = false;
         placementReticle.visible = true;
+        scanPrompt.innerText = '📐 Aim circle at Corner 1 of your room & tap';
         scanPrompt.style.display = 'block';
+        placeButton.innerText = '📍 Set Room Corner 1';
+        placeButton.style.background = 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)';
         placeButton.style.display = 'block';
         moveBtn.style.display = 'none';
     };
     document.body.appendChild(moveBtn);
 
-    // Tap to Place action
+    // 2-Corner Room Scanning Action
     placeButton.onclick = () => {
         if (!currentCamera) return;
 
-        // Lock maze position to reticle position on the floor
-        mazeGame.container.position.copy(placementReticle.position);
-        mazeGame.container.visible = true;
-        isMazePlaced = true;
+        if (scanStep === 1) {
+            // Drop pin at Corner 1
+            corner1Pos = placementReticle.position.clone();
+            scanStep = 2;
 
-        // Hide scanning UI
-        placementReticle.visible = false;
-        scanPrompt.style.display = 'none';
-        placeButton.style.display = 'none';
-        moveBtn.style.display = 'block';
+            if (!corner1Marker) {
+                corner1Marker = new THREE.Mesh(markerGeo, markerMat);
+                threeScene.add(corner1Marker);
+            }
+            corner1Marker.position.copy(corner1Pos);
+            corner1Marker.visible = true;
 
-        mazeGame.reset();
-        mazeGame.onNotification?.('✅ Maze locked to floor! Walk to the green Start Pad to begin.', 'success');
+            // Prompt player for Corner 2
+            scanPrompt.innerText = '📐 Now aim circle at Opposite Corner & tap';
+            placeButton.innerText = '📍 Set Corner 2 (Fit Maze)';
+            placeButton.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        } else if (scanStep === 2 && corner1Pos) {
+            // Record Corner 2
+            const corner2Pos = placementReticle.position.clone();
+
+            // Calibrate maze: scales X & Z to fit within room perimeter, keeping wall height fixed at 1.8m!
+            mazeGame.calibrateRoom(corner1Pos, corner2Pos);
+            mazeGame.container.visible = true;
+            isMazePlaced = true;
+
+            // Hide reticle & markers
+            if (corner1Marker) corner1Marker.visible = false;
+            placementReticle.visible = false;
+            scanPrompt.style.display = 'none';
+            placeButton.style.display = 'none';
+            moveBtn.style.display = 'block';
+
+            mazeGame.reset();
+            mazeGame.onNotification?.(`✅ Room mapped! Maze fitted to room (${mazeGame.roomWidth.toFixed(1)}m × ${mazeGame.roomDepth.toFixed(1)}m).`, 'success');
+        }
     };
 }
 
