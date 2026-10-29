@@ -164,6 +164,18 @@ const groundNode = (instance?.nodes as any)?.Ground_Anchor?.element
                 || threeScene;
 
 mazeGame.init(groundNode);
+
+// Automatically hook up custom visual scene nodes if created by 3D artist in Mattercraft!
+const sceneNodes = (instance?.nodes as any) || {};
+if (sceneNodes.Walls || sceneNodes.StartPad || sceneNodes.EndPad) {
+    mazeGame.bindCustomSceneNodes({
+        wallsGroup: sceneNodes.Walls,
+        startPad: sceneNodes.StartPad,
+        endPad: sceneNodes.EndPad,
+        goalItem: sceneNodes.GoalItem || sceneNodes.WindGem
+    });
+}
+
 mazeGame.container.visible = true; // Fixed variant: immediately visible and ready!
 mazeGame.start();
 mazeGame.onNotification?.('Walk through the entrance into the maze towards the green Start Pad!', 'info');

@@ -159,6 +159,88 @@ export class MazeGame extends BaseMiniGame {
         this.camera = camera;
     }
 
+    /**
+     * Bind custom visual scene nodes created in Mattercraft by the 3D artist / level designer.
+     * Automatically extracts wall collision bounding boxes from all child meshes in the 'Walls' group,
+     * and sets custom start/end pad locations.
+     */
+    public bindCustomSceneNodes(nodes: {
+        wallsGroup?: THREE.Group | THREE.Object3D | any;
+        startPad?: THREE.Object3D | any;
+        endPad?: THREE.Object3D | any;
+        goalItem?: THREE.Object3D | any;
+    }): void {
+        const wallsObj = nodes.wallsGroup?.element || nodes.wallsGroup;
+        const startPadObj = nodes.startPad?.element || nodes.startPad;
+        const endPadObj = nodes.endPad?.element || nodes.endPad;
+        const goalObj = nodes.goalItem?.element || nodes.goalItem;
+
+        if (wallsObj) {
+            // Remove procedural walls so the artist's custom walls take over
+            for (const wall of this.wallMeshes) {
+                this.container.remove(wall);
+                if (wall.geometry) wall.geometry.dispose();
+            }
+            this.wallMeshes = [];
+            this.wallBoundingBoxes = [];
+
+            // Compute local bounding boxes for every mesh inside the artist's Walls group
+            wallsObj.updateMatrixWorld(true);
+            this.container.updateMatrixWorld(true);
+
+            wallsObj.traverse((child: any) => {
+                if (child.isMesh && child.geometry) {
+                    child.geometry.computeBoundingBox();
+                    const worldBox = new THREE.Box3().setFromObject(child);
+
+                    // Convert world coordinates to local container coordinates
+                    const minLocal = this.container.worldToLocal(worldBox.min.clone());
+                    const maxLocal = this.container.worldToLocal(worldBox.max.clone());
+                    const localBox = new THREE.Box3();
+                    localBox.setFromPoints([minLocal, maxLocal]);
+
+                    // Ensure vertical range covers the full wall height for collision
+                    localBox.min.y = -0.5;
+                    localBox.max.y = this.wallHeight + 0.5;
+
+                    this.wallBoundingBoxes.push(localBox);
+                }
+            });
+
+            console.log(`[MazeGame] Loaded ${this.wallBoundingBoxes.length} custom wall colliders from artist's scene!`);
+        }
+
+        if (startPadObj) {
+            const worldPos = new THREE.Vector3();
+            startPadObj.getWorldPosition(worldPos);
+            this.container.worldToLocal(worldPos);
+            this.startPoint.set(worldPos.x, 0, worldPos.z);
+            if (this.startPad) {
+                this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
+            }
+            this.resetPlayerPosition();
+            console.log(`[MazeGame] Start pad bound to (${this.startPoint.x.toFixed(2)}, ${this.startPoint.z.toFixed(2)})`);
+        }
+
+        if (endPadObj) {
+            const worldPos = new THREE.Vector3();
+            endPadObj.getWorldPosition(worldPos);
+            this.container.worldToLocal(worldPos);
+            this.endPoint.set(worldPos.x, 0, worldPos.z);
+            if (this.endPad) {
+                this.endPad.position.set(this.endPoint.x, 0.05, this.endPoint.z);
+            }
+            if (this.goalItemMesh) {
+                this.goalItemMesh.position.set(this.endPoint.x, 1.3, this.endPoint.z);
+            }
+            console.log(`[MazeGame] End pad bound to (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})`);
+        }
+
+        if (goalObj && goalObj.isMesh) {
+            this.goalItemMesh = goalObj;
+        }
+    }
+
     public init(parentContainer: THREE.Group | THREE.Scene | any): void {
         this.addLighting();
         this.buildMaze();
