@@ -240,7 +240,7 @@ function setupTeeterTowerScanUI() {
         moveBtn.style.display = 'block';
 
         mazeGame.reset();
-        mazeGame.notify('✅ Maze locked to floor! Walk to the green Start Pad to begin.', 'success');
+        mazeGame.onNotification?.('✅ Maze locked to floor! Walk to the green Start Pad to begin.', 'success');
     };
 }
 
