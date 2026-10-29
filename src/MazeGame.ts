@@ -4,6 +4,7 @@ import { BaseMiniGame } from './BaseMiniGame';
 export interface MazeConfig {
     wallGracePeriod?: number; // Duration in seconds (e.g. 2.0s) before penalty reset
     wallHeight?: number;      // Fixed height of walls in meters (always human-height, e.g. 1.8m)
+    cellSize?: number;        // Optional initial corridor cell size
     moveSpeed?: number;       // Desktop dev simulation speed
 }
 
