@@ -143,7 +143,7 @@ export abstract class BaseMiniGame {
     }
 
     // --- Notification Helper ---
-    protected notify(message: string, type: NotificationType = 'info'): void {
+    public notify(message: string, type: NotificationType = 'info'): void {
         if (this.onNotification) {
             this.onNotification(message, type);
         }
