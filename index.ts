@@ -154,12 +154,32 @@ mazeGame.init(groundNode);
 
 // Automatically hook up custom visual scene nodes if created by 3D artist in Mattercraft!
 const sceneNodes = (instance?.nodes as any) || {};
-if (sceneNodes.Colliders || sceneNodes.Walls || sceneNodes.StartPad || sceneNodes.EndPad) {
+
+// Forgiving node lookup: supports 'Walls', 'Colliders', 'Colliders/Walls', with or without spaces
+const wallsGroup = sceneNodes.Walls 
+                || sceneNodes.Colliders 
+                || sceneNodes['Colliders/Walls']
+                || sceneNodes['Colliders_Walls'];
+
+const startPadNode = sceneNodes.StartPad 
+                  || sceneNodes['Start Pad']
+                  || sceneNodes.Start_Pad;
+
+const endPadNode = sceneNodes.EndPad 
+                || sceneNodes['End Pad']
+                || sceneNodes.End_Pad;
+
+const goalNode = sceneNodes.GoalItem 
+              || sceneNodes.WindGem 
+              || sceneNodes['Goal Item'] 
+              || sceneNodes.Goal;
+
+if (wallsGroup || startPadNode || endPadNode) {
     mazeGame.bindCustomSceneNodes({
-        collidersGroup: sceneNodes.Colliders || sceneNodes.Walls,
-        startPad: sceneNodes.StartPad,
-        endPad: sceneNodes.EndPad,
-        goalItem: sceneNodes.GoalItem || sceneNodes.WindGem
+        collidersGroup: wallsGroup,
+        startPad: startPadNode,
+        endPad: endPadNode,
+        goalItem: goalNode
     });
 }
 
