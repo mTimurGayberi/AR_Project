@@ -178,28 +178,35 @@ export class MazeGame extends BaseMiniGame {
         const goalObj = nodes.goalItem?.element || nodes.goalItem;
 
         if (wallsObj) {
-            // Remove procedural fallback walls so the scene colliders take over 100%
-            for (const wall of this.wallMeshes) {
-                this.container.remove(wall);
-                if (wall.geometry) wall.geometry.dispose();
-            }
-            this.wallMeshes = [];
-            this.wallBoundingBoxes = [];
-
-            wallsObj.updateMatrixWorld(true);
-            this.container.updateMatrixWorld(true);
-
-            // Auto-detect overall dimensions directly from the scene objects (Zero hardcoded sizes!)
-            const totalBounds = new THREE.Box3().setFromObject(wallsObj);
-            const totalSize = new THREE.Vector3();
-            totalBounds.getSize(totalSize);
-            if (totalSize.x > 0.5) this.roomWidth = totalSize.x;
-            if (totalSize.z > 0.5) this.roomDepth = totalSize.z;
-            if (totalSize.y > 0.5) this.wallHeight = totalSize.y;
-
-            // Compute local bounding boxes for every mesh inside the colliders/walls group
+            const customMeshes: THREE.Mesh[] = [];
             wallsObj.traverse((child: any) => {
                 if (child.isMesh && child.geometry) {
+                    customMeshes.push(child);
+                }
+            });
+
+            if (customMeshes.length > 0) {
+                // Remove procedural fallback walls because custom scene walls are present!
+                for (const wall of this.wallMeshes) {
+                    this.container.remove(wall);
+                    if (wall.geometry) wall.geometry.dispose();
+                }
+                this.wallMeshes = [];
+                this.wallBoundingBoxes = [];
+
+                wallsObj.updateMatrixWorld(true);
+                this.container.updateMatrixWorld(true);
+
+                // Auto-detect overall dimensions directly from the scene objects (Zero hardcoded sizes!)
+                const totalBounds = new THREE.Box3().setFromObject(wallsObj);
+                const totalSize = new THREE.Vector3();
+                totalBounds.getSize(totalSize);
+                if (totalSize.x > 0.5) this.roomWidth = totalSize.x;
+                if (totalSize.z > 0.5) this.roomDepth = totalSize.z;
+                if (totalSize.y > 0.5) this.wallHeight = totalSize.y;
+
+                // Compute local bounding boxes for every mesh inside the colliders/walls group
+                for (const child of customMeshes) {
                     child.geometry.computeBoundingBox();
                     const worldBox = new THREE.Box3().setFromObject(child);
 
@@ -215,9 +222,11 @@ export class MazeGame extends BaseMiniGame {
 
                     this.wallBoundingBoxes.push(localBox);
                 }
-            });
 
-            console.log(`[MazeGame] Auto-configured from scene: ${this.wallBoundingBoxes.length} colliders! Size: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m (Height: ${this.wallHeight.toFixed(1)}m)`);
+                console.log(`[MazeGame] Auto-configured from scene: ${this.wallBoundingBoxes.length} colliders! Size: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m (Height: ${this.wallHeight.toFixed(1)}m)`);
+            } else {
+                console.log('[MazeGame] Colliders group is currently empty. Retaining procedural fallback maze until walls are placed inside.');
+            }
         }
 
         if (startPadObj) {
