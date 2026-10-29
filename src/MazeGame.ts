@@ -161,22 +161,24 @@ export class MazeGame extends BaseMiniGame {
 
     /**
      * Bind custom visual scene nodes created in Mattercraft by the 3D artist / level designer.
-     * Automatically extracts wall collision bounding boxes from all child meshes in the 'Walls' group,
+     * Automatically extracts wall collision bounding boxes from all child meshes in the 'Colliders' or 'Walls' group,
+     * auto-detects the overall room dimensions (no hardcoded sizes needed!),
      * and sets custom start/end pad locations.
      */
     public bindCustomSceneNodes(nodes: {
+        collidersGroup?: THREE.Group | THREE.Object3D | any;
         wallsGroup?: THREE.Group | THREE.Object3D | any;
         startPad?: THREE.Object3D | any;
         endPad?: THREE.Object3D | any;
         goalItem?: THREE.Object3D | any;
     }): void {
-        const wallsObj = nodes.wallsGroup?.element || nodes.wallsGroup;
+        const wallsObj = nodes.collidersGroup?.element || nodes.collidersGroup || nodes.wallsGroup?.element || nodes.wallsGroup;
         const startPadObj = nodes.startPad?.element || nodes.startPad;
         const endPadObj = nodes.endPad?.element || nodes.endPad;
         const goalObj = nodes.goalItem?.element || nodes.goalItem;
 
         if (wallsObj) {
-            // Remove procedural walls so the artist's custom walls take over
+            // Remove procedural fallback walls so the scene colliders take over 100%
             for (const wall of this.wallMeshes) {
                 this.container.remove(wall);
                 if (wall.geometry) wall.geometry.dispose();
@@ -184,10 +186,18 @@ export class MazeGame extends BaseMiniGame {
             this.wallMeshes = [];
             this.wallBoundingBoxes = [];
 
-            // Compute local bounding boxes for every mesh inside the artist's Walls group
             wallsObj.updateMatrixWorld(true);
             this.container.updateMatrixWorld(true);
 
+            // Auto-detect overall dimensions directly from the scene objects (Zero hardcoded sizes!)
+            const totalBounds = new THREE.Box3().setFromObject(wallsObj);
+            const totalSize = new THREE.Vector3();
+            totalBounds.getSize(totalSize);
+            if (totalSize.x > 0.5) this.roomWidth = totalSize.x;
+            if (totalSize.z > 0.5) this.roomDepth = totalSize.z;
+            if (totalSize.y > 0.5) this.wallHeight = totalSize.y;
+
+            // Compute local bounding boxes for every mesh inside the colliders/walls group
             wallsObj.traverse((child: any) => {
                 if (child.isMesh && child.geometry) {
                     child.geometry.computeBoundingBox();
@@ -207,7 +217,7 @@ export class MazeGame extends BaseMiniGame {
                 }
             });
 
-            console.log(`[MazeGame] Loaded ${this.wallBoundingBoxes.length} custom wall colliders from artist's scene!`);
+            console.log(`[MazeGame] Auto-configured from scene: ${this.wallBoundingBoxes.length} colliders! Size: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m (Height: ${this.wallHeight.toFixed(1)}m)`);
         }
 
         if (startPadObj) {

@@ -4,26 +4,13 @@ import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/GameManager";
 import { MazeGame } from "./src/MazeGame";
 
-// --- CONFIGURATION FOR CAMPUS ROOM ---
-// Exact measured campus hall: 7.5m width × 22.0m length with high ceiling!
-const CAMPUS_ROOM_CONFIG = {
-    roomWidth: 7.5,        // 7.5m width
-    roomDepth: 22.0,       // 22.0m length
-    wallHeight: 2.2,       // 2.2m tall bamboo walls
-    wallGracePeriod: 2.0,  // Seconds warning before penalty reset
-    moveSpeed: 3.0         // Keyboard dev simulation speed
-};
-
 console.log("=== SENSEI AR 10 MINI-GAMES SYSTEM ===");
-console.log(`[Campus Setup] Bamboo Maze Hall: ${CAMPUS_ROOM_CONFIG.roomWidth}m × ${CAMPUS_ROOM_CONFIG.roomDepth}m (Bamboo Wall height: ${CAMPUS_ROOM_CONFIG.wallHeight}m)`);
 
 // 1. Create and register the first mini-game (Maze)
+// Dimensions and colliders are dynamically auto-detected from whatever is in Mattercraft!
 const mazeGame = new MazeGame({
-    roomWidth: CAMPUS_ROOM_CONFIG.roomWidth,
-    roomDepth: CAMPUS_ROOM_CONFIG.roomDepth,
-    wallHeight: CAMPUS_ROOM_CONFIG.wallHeight,
-    wallGracePeriod: CAMPUS_ROOM_CONFIG.wallGracePeriod,
-    moveSpeed: CAMPUS_ROOM_CONFIG.moveSpeed
+    wallGracePeriod: 2.0,  // Seconds warning before penalty reset
+    moveSpeed: 3.0         // Keyboard dev simulation speed
 });
 
 gameManager.registerGame(mazeGame);
@@ -167,9 +154,9 @@ mazeGame.init(groundNode);
 
 // Automatically hook up custom visual scene nodes if created by 3D artist in Mattercraft!
 const sceneNodes = (instance?.nodes as any) || {};
-if (sceneNodes.Walls || sceneNodes.StartPad || sceneNodes.EndPad) {
+if (sceneNodes.Colliders || sceneNodes.Walls || sceneNodes.StartPad || sceneNodes.EndPad) {
     mazeGame.bindCustomSceneNodes({
-        wallsGroup: sceneNodes.Walls,
+        collidersGroup: sceneNodes.Colliders || sceneNodes.Walls,
         startPad: sceneNodes.StartPad,
         endPad: sceneNodes.EndPad,
         goalItem: sceneNodes.GoalItem || sceneNodes.WindGem
