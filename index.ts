@@ -148,10 +148,10 @@ if (!placementAnchor) {
         const userPlacement = new UserPlacementAnchorGroup(result.contextManager, {
             startInPlacementMode: true
         });
-        userPlacement.placeOnPlanes.setValue(true);
-        userPlacement.placeOnGround.setValue(true);
-        userPlacement.showPlaceButton.setValue(true);
-        userPlacement.placeButtonText.setValue("Tap to Place Maze");
+        userPlacement.placeOnPlanes.value = true;
+        userPlacement.placeOnGround.value = true;
+        userPlacement.showPlaceButton.value = true;
+        userPlacement.placeButtonText.value = "Tap to Place Maze";
         placementAnchor = userPlacement;
     } catch (e) {
         console.log("[AR] UserPlacementAnchorGroup dynamic init:", e);
