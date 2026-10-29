@@ -1,4 +1,4 @@
-import { initialize } from "@zcomponent/three";
+import { initialize, useScene } from "@zcomponent/three";
 import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/GameManager";
 import { MazeGame } from "./src/MazeGame";
@@ -108,11 +108,11 @@ const result = initialize(Scene, {}, {
 });
 
 const instance = result.rootInstance;
-console.log("Scene initialized successfully!", instance);
+const threeScene = useScene(result.contextManager);
+console.log("Scene initialized successfully!", instance, threeScene);
 
-// Anchor MazeGame to Ground_Anchor if available, or scene root
-const anchor = (instance?.nodes as any)?.Ground_Anchor || (instance?.nodes as any)?.Defaults || instance;
-mazeGame.init(anchor);
+// Attach MazeGame directly to the Three.js scene so it renders in front of the camera!
+mazeGame.init(threeScene);
 mazeGame.start();
 
 // Game loop hook

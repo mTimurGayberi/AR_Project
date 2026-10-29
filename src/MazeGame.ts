@@ -65,18 +65,39 @@ export class MazeGame extends BaseMiniGame {
         if (config?.moveSpeed !== undefined) this.moveSpeed = config.moveSpeed;
     }
 
-    public init(parentContainer: THREE.Group | any): void {
+    public init(parentContainer: THREE.Group | THREE.Scene | any): void {
+        this.addLighting();
         this.buildMaze();
         this.createStartAndEndPads();
         this.createPlayer();
         this.setupInputListeners();
 
-        // Attach this mini-game's 3D container to the AR world / ground anchor
-        if (parentContainer && parentContainer.add) {
+        // Default position: floating ~4.5m in front of camera, tilted 30 deg for tabletop view
+        this.container.position.set(0, -0.8, -4.5);
+        this.container.rotation.x = 0.55; // Tilted toward camera
+        this.container.scale.set(0.45, 0.45, 0.45);
+
+        // Robustly attach to Three.js Scene, Object3D, or ZComponent element
+        if (parentContainer && typeof parentContainer.add === 'function') {
             parentContainer.add(this.container);
+        } else if (parentContainer?.element && typeof parentContainer.element.add === 'function') {
+            parentContainer.element.add(this.container);
         }
 
-        console.log(`[MazeGame] Initialized. Wall grace period: ${this.wallGracePeriod}s`);
+        console.log(`[MazeGame] Initialized and attached to scene. Wall grace period: ${this.wallGracePeriod}s`);
+    }
+
+    private addLighting(): void {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
+        this.container.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        dirLight.position.set(5, 10, 7);
+        this.container.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.0);
+        fillLight.position.set(-5, 5, -5);
+        this.container.add(fillLight);
     }
 
     private buildMaze(): void {
@@ -88,16 +109,19 @@ export class MazeGame extends BaseMiniGame {
         const wallHeight = 0.8;
         const wallGeometry = new THREE.BoxGeometry(this.cellSize, wallHeight, this.cellSize);
         const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0x243b55,
-            roughness: 0.4,
-            metalness: 0.6
+            color: 0x1e3a8a,      // Deep blue
+            emissive: 0x1e40af,   // Subtle blue glow
+            emissiveIntensity: 0.4,
+            roughness: 0.3,
+            metalness: 0.5
         });
 
-        // Floor plane
+        // Floor plane with subtle grid color
         const floorGeo = new THREE.PlaneGeometry(cols * this.cellSize, rows * this.cellSize);
         const floorMat = new THREE.MeshStandardMaterial({
-            color: 0x0f172a,
-            roughness: 0.8
+            color: 0x090d16,
+            roughness: 0.7,
+            metalness: 0.2
         });
         const floorMesh = new THREE.Mesh(floorGeo, floorMat);
         floorMesh.rotation.x = -Math.PI / 2;
