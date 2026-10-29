@@ -166,7 +166,7 @@ const groundNode = (instance?.nodes as any)?.Ground_Anchor?.element
 mazeGame.init(groundNode);
 mazeGame.container.visible = true; // Fixed variant: immediately visible and ready!
 mazeGame.start();
-mazeGame.notify('Walk through the entrance into the maze towards the green Start Pad!', 'info');
+mazeGame.onNotification?.('Walk through the entrance into the maze towards the green Start Pad!', 'info');
 
 // 6. Game loop hook
 let lastTime = performance.now();
