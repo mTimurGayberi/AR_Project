@@ -1,32 +1,128 @@
 import { initialize } from "@zcomponent/three";
 import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/GameManager";
+import { MazeGame } from "./src/MazeGame";
 
-// --- TEST LOGIC ---
-console.log("--- STARTING BACKEND TEST ---");
+// --- INITIALIZE MINI-GAMES & PROGRESSION ---
+console.log("=== SENSEI AR 10 MINI-GAMES SYSTEM ===");
 
-// 1. Check if we loaded a saved game (if the user refreshes the page)
-let quest = gameManager.questManager.getQuest('q_intro');
-console.log(`Initial Quest State: Progress = ${quest?.currentProgress}, Completed = ${quest?.isCompleted}`);
+// 1. Create and register the first mini-game (Maze)
+const mazeGame = new MazeGame({
+    wallGracePeriod: 2.0, // 2-second grace period before wall collision causes a reset
+    cellSize: 1.0,
+    moveSpeed: 2.5
+});
 
-// 2. Simulate the player making progress (e.g., they tapped a UI button)
-if (quest && !quest.isCompleted) {
-    console.log("Simulating player finding the scroll...");
-    gameManager.questManager.updateProgress('q_intro', 1);
-    
-    // 3. Save the game automatically after progress
-    gameManager.saveGame();
-    
-    // 4. Check state again
-    quest = gameManager.questManager.getQuest('q_intro');
-    console.log(`New Quest State: Progress = ${quest?.currentProgress}, Completed = ${quest?.isCompleted}`);
-} else {
-    console.log("Quest was already completed from a previous save!");
-    // Optional: Uncomment the line below to reset the save for testing purposes
-    // gameManager.saveManager.clearSave();
+gameManager.registerGame(mazeGame);
+gameManager.setActiveGame(mazeGame.id);
+
+// 2. Setup HUD Notification Display
+function createHUD() {
+    const hudContainer = document.createElement('div');
+    hudContainer.id = 'game-hud';
+    hudContainer.style.position = 'fixed';
+    hudContainer.style.top = '15px';
+    hudContainer.style.left = '50%';
+    hudContainer.style.transform = 'translateX(-50%)';
+    hudContainer.style.zIndex = '1000';
+    hudContainer.style.display = 'flex';
+    hudContainer.style.flexDirection = 'column';
+    hudContainer.style.alignItems = 'center';
+    hudContainer.style.pointerEvents = 'none';
+    hudContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+
+    // Item counter pill
+    const counterPill = document.createElement('div');
+    counterPill.id = 'hud-counter';
+    counterPill.style.background = 'rgba(15, 23, 42, 0.85)';
+    counterPill.style.color = '#38bdf8';
+    counterPill.style.border = '1px solid rgba(56, 189, 248, 0.3)';
+    counterPill.style.borderRadius = '20px';
+    counterPill.style.padding = '8px 18px';
+    counterPill.style.fontSize = '14px';
+    counterPill.style.fontWeight = 'bold';
+    counterPill.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+    (counterPill.style as any).backdropFilter = 'blur(6px)';
+
+    const updateCounterUI = () => {
+        const prog = gameManager.getProgression();
+        counterPill.innerText = `🔮 Special Items: ${prog.collected} / ${prog.total}`;
+    };
+    updateCounterUI();
+    hudContainer.appendChild(counterPill);
+
+    // Dynamic Banner for announcements (Wall warnings, Wins, Fails)
+    const alertBanner = document.createElement('div');
+    alertBanner.id = 'hud-banner';
+    alertBanner.style.marginTop = '10px';
+    alertBanner.style.padding = '10px 20px';
+    alertBanner.style.borderRadius = '8px';
+    alertBanner.style.fontSize = '14px';
+    alertBanner.style.fontWeight = '600';
+    alertBanner.style.display = 'none';
+    alertBanner.style.transition = 'all 0.3s ease';
+    hudContainer.appendChild(alertBanner);
+
+    document.body.appendChild(hudContainer);
+
+    // Connect BaseMiniGame notification hook
+    mazeGame.onNotification = (message, type) => {
+        console.log(`[MiniGame Notification] (${type}) ${message}`);
+        alertBanner.innerText = message;
+        alertBanner.style.display = 'block';
+
+        if (type === 'warning') {
+            alertBanner.style.background = 'rgba(239, 68, 68, 0.9)'; // Red warning
+            alertBanner.style.color = '#ffffff';
+            alertBanner.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.6)';
+        } else if (type === 'success') {
+            alertBanner.style.background = 'rgba(16, 185, 129, 0.9)'; // Green success
+            alertBanner.style.color = '#ffffff';
+            alertBanner.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.6)';
+            updateCounterUI();
+        } else {
+            alertBanner.style.background = 'rgba(30, 41, 59, 0.85)';
+            alertBanner.style.color = '#e2e8f0';
+            alertBanner.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+        }
+
+        if (type !== 'warning') {
+            setTimeout(() => {
+                alertBanner.style.display = 'none';
+            }, 3000);
+        }
+    };
 }
-console.log("--- END BACKEND TEST ---");
 
-initialize(Scene, {}, {
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', createHUD);
+    } else {
+        createHUD();
+    }
+}
+
+// 3. Initialize Mattercraft 3D Scene
+const result = initialize(Scene, {}, {
     launchButton: document.getElementById('launchButton')
 });
+
+const instance = result.rootInstance;
+console.log("Scene initialized successfully!", instance);
+
+// Anchor MazeGame to Ground_Anchor if available, or scene root
+const anchor = (instance?.nodes as any)?.Ground_Anchor || (instance?.nodes as any)?.Defaults || instance;
+mazeGame.init(anchor);
+mazeGame.start();
+
+// Game loop hook
+let lastTime = performance.now();
+function loop(now: number) {
+    const delta = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    gameManager.updateActiveGame(delta);
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+

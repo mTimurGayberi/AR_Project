@@ -4,10 +4,14 @@ This is a WebAR project built with Zapworks Mattercraft for the LABXR course.
 
 ## Project Structure
 
-- `src/GameManager.ts`: The central Singleton that controls the game logic across all scenes.
+- `src/GameManager.ts`: The central Singleton managing 10-item progression, active games, and saving.
+- `src/BaseMiniGame.ts`: Abstract base class with lifecycle methods, silent timer, and notifications.
+- `src/MazeGame.ts`: Game #1 (procedural maze, 1-3s wall grace period warning, touch/keyboard input).
+- `src/PlayFabService.ts`: Cloud progression & leaderboard environment prepared for PlayFab SDK.
 - `src/QuestManager.ts`: Handles the Sensei's quests, tracking progress, and completion states.
 - `src/SaveManager.ts`: Handles saving and loading the game state via browser `localStorage`.
 - `assets/`: (To be added) This is where all 3D models (.gltf/.glb), audio, and images will go.
+
 
 ## Workflow for Artists (Image Tracking)
 
