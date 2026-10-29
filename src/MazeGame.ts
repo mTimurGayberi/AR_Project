@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BaseMiniGame } from './BaseMiniGame';
+import type { RoomBounds } from './RoomScanner';
 
 export interface MazeConfig {
     wallGracePeriod?: number; // Duration in seconds (e.g. 2.0s) before penalty reset
@@ -90,19 +91,34 @@ export class MazeGame extends BaseMiniGame {
     }
 
     /**
-     * Calibrate the maze to fit the player's scanned room.
+     * Apply calibrated room boundaries from RoomScanner.
+     * Scales only X and Z to match room dimensions; wall height (Y) remains strictly fixed at 1.8m!
+     */
+    public applyRoomBounds(bounds: RoomBounds): void {
+        this.roomWidth = bounds.width;
+        this.roomDepth = bounds.depth;
+
+        this.container.position.copy(bounds.center);
+        this.container.rotation.y = bounds.rotationY;
+
+        console.log(`[MazeGame] Room bounds applied: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m. Rotation: ${bounds.rotationY.toFixed(2)} rad. Wall height: ${this.wallHeight}m.`);
+
+        this.rebuildMaze();
+        this.reset();
+        this.notify(`Maze fitted to room: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m! (Walls: ${this.wallHeight}m tall)`, 'success');
+    }
+
+    /**
+     * Calibrate the maze to fit the player's scanned room (2-corner fallback).
      * Scales only X and Z to match room dimensions; wall height (Y) remains fixed at 1.8m!
      */
     public calibrateRoom(corner1: THREE.Vector3, corner2: THREE.Vector3): void {
-        // Measure horizontal floor distances
         const measuredWidth = Math.abs(corner2.x - corner1.x);
         const measuredDepth = Math.abs(corner2.z - corner1.z);
 
-        // Enforce safe minimums (at least 2.5m x 2.5m so corridors remain walkable)
         this.roomWidth = Math.max(measuredWidth, 2.5);
         this.roomDepth = Math.max(measuredDepth, 2.5);
 
-        // Center the maze container at the floor midpoint between the two corners
         const centerX = (corner1.x + corner2.x) / 2;
         const centerZ = (corner1.z + corner2.z) / 2;
         const floorY = Math.min(corner1.y, corner2.y);
@@ -111,7 +127,6 @@ export class MazeGame extends BaseMiniGame {
 
         console.log(`[MazeGame] Room calibrated: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m. Wall height strictly fixed at ${this.wallHeight}m.`);
 
-        // Rebuild maze geometry with calibrated X & Z dimensions
         this.rebuildMaze();
         this.reset();
         this.notify(`Room mapped: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m! Maze generated.`, 'success');
