@@ -120,8 +120,22 @@ cameraObservable.addListener((activeCam) => {
     mazeGame.setCamera(activeCam);
 });
 
-// Attach MazeGame directly to the Three.js scene
-mazeGame.init(threeScene);
+// Hide the default template Box so it doesn't block the scene!
+if ((instance?.nodes as any)?.Box) {
+    const boxNode = (instance.nodes as any).Box;
+    if (boxNode.visible?.setValue) boxNode.visible.setValue(false);
+    if (boxNode.element) boxNode.element.visible = false;
+}
+
+// Prefer Ground_Anchor or WorldTracker so it anchors to the real physical floor in AR
+const arAnchor = (instance?.nodes as any)?.Ground_Anchor?.element 
+              || (instance?.nodes as any)?.WorldTracker?.element 
+              || (instance?.nodes as any)?.Ground_Anchor
+              || (instance?.nodes as any)?.WorldTracker
+              || threeScene;
+
+// Attach MazeGame directly to the AR anchor
+mazeGame.init(arAnchor);
 mazeGame.start();
 
 // Game loop hook
