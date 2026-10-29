@@ -1,9 +1,8 @@
+import * as THREE from 'three';
 import { initialize, useScene, useCamera } from "@zcomponent/three";
 import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/GameManager";
 import { MazeGame } from "./src/MazeGame";
-import { WorldTrackingUI } from "@zcomponent/zappar-three/lib/components/WorldTrackingUI";
-import { UserPlacementAnchorGroup } from "@zcomponent/zappar-three/lib/components/anchorgroups/UserPlacementAnchorGroup";
 
 // --- INITIALIZE MINI-GAMES & PROGRESSION ---
 console.log("=== SENSEI AR 10 MINI-GAMES SYSTEM ===");
@@ -19,12 +18,15 @@ const mazeGame = new MazeGame({
 gameManager.registerGame(mazeGame);
 gameManager.setActiveGame(mazeGame.id);
 
+let currentCamera: THREE.Camera | null = null;
+let isMazePlaced = false;
+
 // 2. Setup HUD Notification Display
 function createHUD() {
     const hudContainer = document.createElement('div');
     hudContainer.id = 'game-hud';
     hudContainer.style.position = 'fixed';
-    hudContainer.style.top = '15px';
+    hudContainer.style.top = '48px'; // Moved down so iPhone notch/island doesn't obscure the HUD
     hudContainer.style.left = '50%';
     hudContainer.style.transform = 'translateX(-50%)';
     hudContainer.style.zIndex = '1000';
@@ -117,63 +119,171 @@ console.log("Scene initialized successfully!", instance, threeScene);
 // Link active AR camera for physical 1:1 room-scale walking
 const cameraObservable = useCamera(result.contextManager);
 if (cameraObservable.value) {
+    currentCamera = cameraObservable.value;
     mazeGame.setCamera(cameraObservable.value);
 }
 cameraObservable.addListener((activeCam) => {
+    currentCamera = activeCam;
     mazeGame.setCamera(activeCam);
 });
 
-// Hide the default template Box so it doesn't block the scene!
+// Hide the default template Box
 if ((instance?.nodes as any)?.Box) {
     const boxNode = (instance.nodes as any).Box;
     if (boxNode.visible?.setValue) boxNode.visible.setValue(false);
     if (boxNode.element) boxNode.element.visible = false;
 }
 
-// 4. Teeter Tower Style Scanning & Tap-to-Place
-// Check if UserPlacementAnchorGroup exists in Mattercraft scene, or create it dynamically
-let placementAnchor = (instance?.nodes as any)?.UserPlacementAnchorGroup 
-                   || (instance?.nodes as any)?.User_Placement_Anchor_Group;
+// 4. Teeter Tower Style Floor Scanning & Tap-to-Place System
+// Anchor target: UserPlacementAnchorGroup, Ground_Anchor, or threeScene
+const groundNode = (instance?.nodes as any)?.UserPlacementAnchorGroup?.element
+                || (instance?.nodes as any)?.Ground_Anchor?.element
+                || (instance?.nodes as any)?.WorldTracker?.element
+                || threeScene;
 
-// Initialize official Zappar floor scanning animation ("Move forward and back to find a surface")
-try {
-    new WorldTrackingUI(result.contextManager, {});
-} catch (e) {
-    console.log("[AR] WorldTrackingUI:", e);
+// Create 3D Floor Placement Reticle (Teeter Tower style ring)
+const reticleGeo = new THREE.RingGeometry(0.4, 0.46, 32);
+const reticleMat = new THREE.MeshBasicMaterial({
+    color: 0x00d2ff,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.8
+});
+const placementReticle = new THREE.Mesh(reticleGeo, reticleMat);
+placementReticle.rotation.x = -Math.PI / 2; // Lie flat on the floor
+placementReticle.visible = false;
+threeScene.add(placementReticle);
+
+// Setup Teeter Tower Scan & Place UI
+function setupTeeterTowerScanUI() {
+    // 1. Scanning Instruction Banner
+    const scanPrompt = document.createElement('div');
+    scanPrompt.id = 'scan-prompt';
+    scanPrompt.style.position = 'fixed';
+    scanPrompt.style.top = '105px';
+    scanPrompt.style.left = '50%';
+    scanPrompt.style.transform = 'translateX(-50%)';
+    scanPrompt.style.background = 'rgba(15, 23, 42, 0.9)';
+    scanPrompt.style.border = '1px solid rgba(56, 189, 248, 0.4)';
+    scanPrompt.style.borderRadius = '12px';
+    scanPrompt.style.padding = '10px 18px';
+    scanPrompt.style.color = '#38bdf8';
+    scanPrompt.style.fontSize = '14px';
+    scanPrompt.style.fontWeight = '600';
+    scanPrompt.style.textAlign = 'center';
+    scanPrompt.style.boxShadow = '0 6px 20px rgba(0,0,0,0.5)';
+    scanPrompt.style.zIndex = '1200';
+    scanPrompt.style.pointerEvents = 'none';
+    scanPrompt.innerText = '📱 Move phone slowly across floor to scan room';
+    (scanPrompt.style as any).backdropFilter = 'blur(6px)';
+    document.body.appendChild(scanPrompt);
+
+    // 2. Large "Tap to Place" Button
+    const placeButton = document.createElement('button');
+    placeButton.id = 'place-maze-btn';
+    placeButton.innerText = '📍 Tap to Place Maze';
+    placeButton.style.position = 'fixed';
+    placeButton.style.bottom = '40px';
+    placeButton.style.left = '50%';
+    placeButton.style.transform = 'translateX(-50%)';
+    placeButton.style.background = 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)';
+    placeButton.style.color = '#ffffff';
+    placeButton.style.border = 'none';
+    placeButton.style.borderRadius = '28px';
+    placeButton.style.padding = '16px 36px';
+    placeButton.style.fontSize = '17px';
+    placeButton.style.fontWeight = 'bold';
+    placeButton.style.boxShadow = '0 10px 25px rgba(2, 132, 199, 0.5)';
+    placeButton.style.cursor = 'pointer';
+    placeButton.style.zIndex = '2000';
+    placeButton.style.letterSpacing = '0.5px';
+    document.body.appendChild(placeButton);
+
+    // 3. Relocate button (re-open scanning)
+    const moveBtn = document.createElement('button');
+    moveBtn.innerText = '🔄 Relocate';
+    moveBtn.style.position = 'fixed';
+    moveBtn.style.bottom = '15px';
+    moveBtn.style.left = '15px';
+    moveBtn.style.zIndex = '1500';
+    moveBtn.style.padding = '8px 14px';
+    moveBtn.style.borderRadius = '20px';
+    moveBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+    moveBtn.style.background = 'rgba(15, 23, 42, 0.8)';
+    moveBtn.style.color = '#94a3b8';
+    moveBtn.style.fontSize = '12px';
+    moveBtn.style.display = 'none';
+    moveBtn.style.cursor = 'pointer';
+    moveBtn.onclick = () => {
+        isMazePlaced = false;
+        mazeGame.container.visible = false;
+        placementReticle.visible = true;
+        scanPrompt.style.display = 'block';
+        placeButton.style.display = 'block';
+        moveBtn.style.display = 'none';
+    };
+    document.body.appendChild(moveBtn);
+
+    // Tap to Place action
+    placeButton.onclick = () => {
+        if (!currentCamera) return;
+
+        // Lock maze position to reticle position on the floor
+        mazeGame.container.position.copy(placementReticle.position);
+        mazeGame.container.visible = true;
+        isMazePlaced = true;
+
+        // Hide scanning UI
+        placementReticle.visible = false;
+        scanPrompt.style.display = 'none';
+        placeButton.style.display = 'none';
+        moveBtn.style.display = 'block';
+
+        mazeGame.reset();
+        mazeGame.notify('✅ Maze locked to floor! Walk to the green Start Pad to begin.', 'success');
+    };
 }
 
-// If UserPlacementAnchorGroup wasn't created in the Mattercraft UI, create it dynamically
-if (!placementAnchor) {
-    try {
-        const userPlacement = new UserPlacementAnchorGroup(result.contextManager, {
-            startInPlacementMode: true
-        });
-        userPlacement.placeOnPlanes.value = true;
-        userPlacement.placeOnGround.value = true;
-        userPlacement.showPlaceButton.value = true;
-        userPlacement.placeButtonText.value = "Tap to Place Maze";
-        placementAnchor = userPlacement;
-    } catch (e) {
-        console.log("[AR] UserPlacementAnchorGroup dynamic init:", e);
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupTeeterTowerScanUI);
+    } else {
+        setupTeeterTowerScanUI();
     }
 }
 
-// Anchor MazeGame to UserPlacementAnchorGroup (or Ground_Anchor fallback)
-const arAnchor = placementAnchor?.element 
-              || (instance?.nodes as any)?.Ground_Anchor?.element 
-              || (instance?.nodes as any)?.WorldTracker?.element 
-              || threeScene;
-
-mazeGame.init(arAnchor);
+// Attach MazeGame initially hidden until player scans & places
+mazeGame.init(groundNode);
+mazeGame.container.visible = false; // Hidden during initial floor scanning
 mazeGame.start();
 
-// Game loop hook
+// Game loop hook (updates camera raycast for placement reticle + game logic)
 let lastTime = performance.now();
+const forwardVec = new THREE.Vector3();
+
 function loop(now: number) {
     const delta = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
-    gameManager.updateActiveGame(delta);
+    // During placement mode: update the floor reticle in front of camera
+    if (!isMazePlaced && currentCamera) {
+        placementReticle.visible = true;
+
+        // Cast ~2.2m ahead on the floor
+        currentCamera.getWorldDirection(forwardVec);
+        const camPos = currentCamera.getWorldPosition(new THREE.Vector3());
+
+        const targetX = camPos.x + forwardVec.x * 2.2;
+        const targetZ = camPos.z + forwardVec.z * 2.2;
+        const floorY = camPos.y - 1.2; // Project to floor height below phone
+
+        placementReticle.position.set(targetX, floorY, targetZ);
+    }
+
+    if (isMazePlaced) {
+        gameManager.updateActiveGame(delta);
+    }
+
     requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
