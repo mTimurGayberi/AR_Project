@@ -5,17 +5,17 @@ import { gameManager } from "./src/GameManager";
 import { MazeGame } from "./src/MazeGame";
 
 // --- CONFIGURATION FOR CAMPUS ROOM ---
-// You can adjust roomWidth and roomDepth here to match your exact room dimensions.
+// Exact measured campus hall: 7.5m width × 22.0m length with high ceiling!
 const CAMPUS_ROOM_CONFIG = {
-    roomWidth: 5.0,        // Fixed room width in meters (e.g. 4.0m - 6.0m)
-    roomDepth: 5.0,        // Fixed room depth in meters
-    wallHeight: 1.8,       // Fixed human height in meters (never shrunk!)
+    roomWidth: 7.5,        // 7.5m width
+    roomDepth: 22.0,       // 22.0m length
+    wallHeight: 2.2,       // 2.2m tall bamboo walls
     wallGracePeriod: 2.0,  // Seconds warning before penalty reset
-    moveSpeed: 2.5         // Keyboard dev simulation speed
+    moveSpeed: 3.0         // Keyboard dev simulation speed
 };
 
 console.log("=== SENSEI AR 10 MINI-GAMES SYSTEM ===");
-console.log(`[Campus Setup] Fixed Maze Room: ${CAMPUS_ROOM_CONFIG.roomWidth}m × ${CAMPUS_ROOM_CONFIG.roomDepth}m (Wall height: ${CAMPUS_ROOM_CONFIG.wallHeight}m)`);
+console.log(`[Campus Setup] Bamboo Maze Hall: ${CAMPUS_ROOM_CONFIG.roomWidth}m × ${CAMPUS_ROOM_CONFIG.roomDepth}m (Bamboo Wall height: ${CAMPUS_ROOM_CONFIG.wallHeight}m)`);
 
 // 1. Create and register the first mini-game (Maze)
 const mazeGame = new MazeGame({

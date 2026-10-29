@@ -25,14 +25,14 @@ export interface MazeConfig {
  */
 export class MazeGame extends BaseMiniGame {
     public wallGracePeriod: number = 2.0;
-    public wallHeight: number = 1.8; // Fixed human height: walls NEVER shrink vertically!
-    public moveSpeed: number = 2.5;
+    public wallHeight: number = 2.2; // 2.2m tall bamboo walls for the high ceiling campus room!
+    public moveSpeed: number = 3.0;
 
-    // Room dimensions (X = width, Z = depth)
-    public roomWidth: number = 5.0;
-    public roomDepth: number = 5.0;
-    public cellSizeX: number = 1.0;
-    public cellSizeZ: number = 1.0;
+    // Room dimensions (X = width: 7.5m, Z = depth: 22.0m)
+    public roomWidth: number = 7.5;
+    public roomDepth: number = 22.0;
+    public cellSizeX: number = 1.5;
+    public cellSizeZ: number = 2.2;
 
     // Camera reference for 1:1 physical AR walking
     private camera: THREE.Camera | null = null;
@@ -304,15 +304,15 @@ export class MazeGame extends BaseMiniGame {
         // Wall geometry: X and Z scale to the room; Y (height) is FIXED at this.wallHeight!
         const wallGeometry = new THREE.BoxGeometry(this.cellSizeX, this.wallHeight, this.cellSizeZ);
         
-        // Semi-transparent AR holographic walls (safe for indoor walking)
+        // Semi-transparent bamboo green walls (safe for indoor walking)
         const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2563eb,
-            emissive: 0x1d4ed8,
-            emissiveIntensity: 0.5,
-            roughness: 0.2,
-            metalness: 0.3,
+            color: 0x2e7d32, // Bamboo green
+            emissive: 0x1b5e20,
+            emissiveIntensity: 0.4,
+            roughness: 0.4,
+            metalness: 0.1,
             transparent: true,
-            opacity: 0.75
+            opacity: 0.8
         });
 
         // Floor guidelines
