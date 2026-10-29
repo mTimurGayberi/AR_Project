@@ -3,17 +3,27 @@ import { initialize, useScene, useCamera } from "@zcomponent/three";
 import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/GameManager";
 import { MazeGame } from "./src/MazeGame";
-import { RoomScanner } from "./src/RoomScanner";
 
-// --- INITIALIZE MINI-GAMES & PROGRESSION ---
+// --- CONFIGURATION FOR CAMPUS ROOM ---
+// You can adjust roomWidth and roomDepth here to match your exact room dimensions.
+const CAMPUS_ROOM_CONFIG = {
+    roomWidth: 5.0,        // Fixed room width in meters (e.g. 4.0m - 6.0m)
+    roomDepth: 5.0,        // Fixed room depth in meters
+    wallHeight: 1.8,       // Fixed human height in meters (never shrunk!)
+    wallGracePeriod: 2.0,  // Seconds warning before penalty reset
+    moveSpeed: 2.5         // Keyboard dev simulation speed
+};
+
 console.log("=== SENSEI AR 10 MINI-GAMES SYSTEM ===");
+console.log(`[Campus Setup] Fixed Maze Room: ${CAMPUS_ROOM_CONFIG.roomWidth}m × ${CAMPUS_ROOM_CONFIG.roomDepth}m (Wall height: ${CAMPUS_ROOM_CONFIG.wallHeight}m)`);
 
 // 1. Create and register the first mini-game (Maze)
 const mazeGame = new MazeGame({
-    wallGracePeriod: 2.0, // 2-second grace period before wall collision causes a reset
-    wallHeight: 1.8,      // Fixed human-height walls (never shortened!)
-    cellSize: 1.0,
-    moveSpeed: 2.5
+    roomWidth: CAMPUS_ROOM_CONFIG.roomWidth,
+    roomDepth: CAMPUS_ROOM_CONFIG.roomDepth,
+    wallHeight: CAMPUS_ROOM_CONFIG.wallHeight,
+    wallGracePeriod: CAMPUS_ROOM_CONFIG.wallGracePeriod,
+    moveSpeed: CAMPUS_ROOM_CONFIG.moveSpeed
 });
 
 gameManager.registerGame(mazeGame);
@@ -88,7 +98,7 @@ function createHUD() {
         if (type !== 'warning') {
             setTimeout(() => {
                 alertBanner.style.display = 'none';
-            }, 3000);
+            }, 3500);
         }
     };
 }
@@ -109,81 +119,62 @@ const result = initialize(Scene, {}, {
 const instance = result.rootInstance;
 const threeScene = useScene(result.contextManager);
 
-// Hide the default template Box
-if ((instance?.nodes as any)?.Box) {
-    const boxNode = (instance.nodes as any).Box;
-    if (boxNode.visible?.setValue) boxNode.visible.setValue(false);
-    if (boxNode.element) boxNode.element.visible = false;
+// Handle the level Box representing the maze area
+const boxNode = (instance?.nodes as any)?.Box;
+if (boxNode?.element) {
+    const boxMesh = boxNode.element as THREE.Mesh;
+    
+    // If the Box in Mattercraft was scaled to represent the room, use its scale!
+    if (boxMesh.scale && (boxMesh.scale.x > 1.1 || boxMesh.scale.z > 1.1)) {
+        console.log(`[Level Box] Adopting level box scale: ${boxMesh.scale.x}m × ${boxMesh.scale.z}m`);
+        mazeGame.setRoomDimensions(boxMesh.scale.x, boxMesh.scale.z);
+    }
+
+    // Make the level box a sleek translucent wireframe boundary so it never blocks the player's view
+    if (boxMesh.material) {
+        if (Array.isArray(boxMesh.material)) {
+            boxMesh.material.forEach((m: any) => {
+                m.transparent = true;
+                m.opacity = 0.15;
+                m.wireframe = true;
+            });
+        } else {
+            const mat = boxMesh.material as any;
+            mat.transparent = true;
+            mat.opacity = 0.15;
+            mat.wireframe = true;
+            mat.color = new THREE.Color(0x38bdf8);
+        }
+    }
 }
 
-// 4. Initialize Reusable RoomScanner Service
-const roomScanner = new RoomScanner(threeScene);
-
-// Link active AR camera for 6-DOF physical walking
+// 4. Link active AR camera for 6-DOF physical walking
 const cameraObservable = useCamera(result.contextManager);
 if (cameraObservable.value) {
     mazeGame.setCamera(cameraObservable.value);
-    roomScanner.setCamera(cameraObservable.value);
 }
 cameraObservable.addListener((activeCam) => {
     mazeGame.setCamera(activeCam);
-    roomScanner.setCamera(activeCam);
 });
 
-// Anchor target
-const groundNode = (instance?.nodes as any)?.UserPlacementAnchorGroup?.element
-                || (instance?.nodes as any)?.Ground_Anchor?.element
+// 5. Anchor Maze directly to Ground Anchor / Level Anchor
+const groundNode = (instance?.nodes as any)?.Ground_Anchor?.element
+                || (instance?.nodes as any)?.UserPlacementAnchorGroup?.element
                 || (instance?.nodes as any)?.WorldTracker?.element
                 || threeScene;
 
 mazeGame.init(groundNode);
-mazeGame.container.visible = false; // Hidden until room boundary is scanned
+mazeGame.container.visible = true; // Fixed variant: immediately visible and ready!
 mazeGame.start();
+mazeGame.notify('Walk through the entrance into the maze towards the green Start Pad!', 'info');
 
-// 5. Start Room Scanning Flow
-function startRoomScanFlow() {
-    mazeGame.container.visible = false;
-
-    roomScanner.startScan((bounds) => {
-        // Fit maze 100% inside the scanned room boundary polygon!
-        mazeGame.applyRoomBounds(bounds);
-        mazeGame.container.visible = true;
-    });
-}
-startRoomScanFlow();
-
-// Recalibrate button at bottom-left
-const recalibBtn = document.createElement('button');
-recalibBtn.innerText = '📐 Recalibrate Room';
-recalibBtn.style.position = 'fixed';
-recalibBtn.style.bottom = '15px';
-recalibBtn.style.left = '15px';
-recalibBtn.style.zIndex = '1500';
-recalibBtn.style.padding = '8px 14px';
-recalibBtn.style.borderRadius = '20px';
-recalibBtn.style.border = '1px solid rgba(255,255,255,0.2)';
-recalibBtn.style.background = 'rgba(15, 23, 42, 0.85)';
-recalibBtn.style.color = '#94a3b8';
-recalibBtn.style.fontSize = '12px';
-recalibBtn.style.cursor = 'pointer';
-recalibBtn.onclick = () => {
-    startRoomScanFlow();
-};
-document.body.appendChild(recalibBtn);
-
-// Game loop hook
+// 6. Game loop hook
 let lastTime = performance.now();
 function loop(now: number) {
     const delta = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
-    // Update room scanner reticle & live boundary line
-    roomScanner.update();
-
-    if (mazeGame.container.visible) {
-        gameManager.updateActiveGame(delta);
-    }
-
+    gameManager.updateActiveGame(delta);
     requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

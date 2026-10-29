@@ -5,8 +5,10 @@ import type { RoomBounds } from './RoomScanner';
 export interface MazeConfig {
     wallGracePeriod?: number; // Duration in seconds (e.g. 2.0s) before penalty reset
     wallHeight?: number;      // Fixed height of walls in meters (always human-height, e.g. 1.8m)
-    cellSize?: number;        // Optional initial corridor cell size
+    cellSize?: number;        // Optional corridor cell size
     moveSpeed?: number;       // Desktop dev simulation speed
+    roomWidth?: number;       // Fixed room width in meters (e.g. 4.0m - 6.0m)
+    roomDepth?: number;       // Fixed room depth in meters (e.g. 4.0m - 6.0m)
 }
 
 /**
@@ -14,11 +16,11 @@ export interface MazeConfig {
  * 
  * Game #1 in the 10 mini-game quest.
  * Features:
- * - 1:1 Room-Scale AR: Fits inside any room via 2-corner calibration scan!
- * - Scales ONLY on the horizontal floor plane (X and Z) to match measured room dimensions.
+ * - 1:1 Fixed Room-Scale AR: Fits the physical campus room at fixed dimensions (default 5.0m x 5.0m).
  * - Vertical wall height (Y) remains strictly fixed at 1.8m so walls never become short toy walls.
- * - Player position is tracked via the phone's 6-DOF AR camera.
- * - Wall collision grace period (1-3 seconds warning before penalty).
+ * - Player position is tracked via the phone's 6-DOF AR camera as they physically walk inside.
+ * - Open entrance doorway at (0, 1) allows player to physically walk in from outside.
+ * - Wall collision grace period (2-second warning before penalty).
  * - Physical Return-to-Start mechanic on wall failure.
  */
 export class MazeGame extends BaseMiniGame {
@@ -27,10 +29,10 @@ export class MazeGame extends BaseMiniGame {
     public moveSpeed: number = 2.5;
 
     // Room dimensions (X = width, Z = depth)
-    public roomWidth: number = 4.0;
-    public roomDepth: number = 4.0;
-    public cellSizeX: number = 0.8;
-    public cellSizeZ: number = 0.8;
+    public roomWidth: number = 5.0;
+    public roomDepth: number = 5.0;
+    public cellSizeX: number = 1.0;
+    public cellSizeZ: number = 1.0;
 
     // Camera reference for 1:1 physical AR walking
     private camera: THREE.Camera | null = null;
@@ -64,12 +66,13 @@ export class MazeGame extends BaseMiniGame {
     private isUsingKeyboard: boolean = false;
 
     // 5x5 Walkable Maze Grid (Optimal for room-scale walking)
+    // (0, 1) Open entrance doorway from room into maze
     // S at (1, 1), E at (3, 3)
     private mazeGrid: number[][] = [
-        [1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 1], // (1, 1) Start corridor
+        [1, 0, 1, 1, 1], // (0, 1) Entrance doorway
+        [1, 0, 0, 0, 1], // (1, 1) Start corridor & pad
         [1, 0, 1, 0, 1], // Center barrier
-        [1, 0, 0, 0, 1], // (3, 3) End corridor
+        [1, 0, 0, 0, 1], // (3, 3) End corridor & reward gem
         [1, 1, 1, 1, 1],
     ];
 
@@ -79,6 +82,14 @@ export class MazeGame extends BaseMiniGame {
         if (config?.wallGracePeriod !== undefined) this.wallGracePeriod = config.wallGracePeriod;
         if (config?.wallHeight !== undefined) this.wallHeight = config.wallHeight;
         if (config?.moveSpeed !== undefined) this.moveSpeed = config.moveSpeed;
+        if (config?.roomWidth !== undefined) this.roomWidth = config.roomWidth;
+        if (config?.roomDepth !== undefined) this.roomDepth = config.roomDepth;
+        if (config?.cellSize !== undefined) {
+            const cols = this.mazeGrid[0].length;
+            const rows = this.mazeGrid.length;
+            this.roomWidth = config.cellSize * cols;
+            this.roomDepth = config.cellSize * rows;
+        }
 
         this.calculateCellSizes();
     }
@@ -88,6 +99,18 @@ export class MazeGame extends BaseMiniGame {
         const cols = this.mazeGrid[0].length;
         this.cellSizeX = this.roomWidth / cols;
         this.cellSizeZ = this.roomDepth / rows;
+    }
+
+    /**
+     * Set fixed room dimensions directly (in meters).
+     * Rebuilds the maze grid to match the room while keeping wallHeight fixed at 1.8m.
+     */
+    public setRoomDimensions(width: number, depth: number): void {
+        this.roomWidth = Math.max(width, 2.0);
+        this.roomDepth = Math.max(depth, 2.0);
+        this.rebuildMaze();
+        this.reset();
+        this.notify(`Maze set to fixed room: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m.`, 'info');
     }
 
     /**
