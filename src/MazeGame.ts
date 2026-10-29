@@ -3,8 +3,7 @@ import { BaseMiniGame } from './BaseMiniGame';
 
 export interface MazeConfig {
     wallGracePeriod?: number; // Duration in seconds (e.g. 2.0s) before penalty reset
-    cellSize?: number;        // Size of each grid cell in meters (e.g. 1.6m for walkable AR corridors)
-    wallHeight?: number;      // Height of walls in meters (e.g. 1.8m)
+    wallHeight?: number;      // Fixed height of walls in meters (always human-height, e.g. 1.8m)
     moveSpeed?: number;       // Desktop dev simulation speed
 }
 
@@ -13,18 +12,23 @@ export interface MazeConfig {
  * 
  * Game #1 in the 10 mini-game quest.
  * Features:
- * - 1:1 Room-scale walkable AR Maze: The player physically walks in reality with their phone!
- * - Player position is tracked directly via the AR phone camera's 6-DOF world position.
+ * - 1:1 Room-Scale AR: Fits inside any room via 2-corner calibration scan!
+ * - Scales ONLY on the horizontal floor plane (X and Z) to match measured room dimensions.
+ * - Vertical wall height (Y) remains strictly fixed at 1.8m so walls never become short toy walls.
+ * - Player position is tracked via the phone's 6-DOF AR camera.
  * - Wall collision grace period (1-3 seconds warning before penalty).
- * - Physical Return-to-Start mechanic: When penalty occurs, player must physically walk back to the Start Pad.
- * - Semi-transparent neon AR walls for real-world safety (player can still see physical room).
- * - Desktop keyboard simulation fallback for easy testing on PC.
+ * - Physical Return-to-Start mechanic on wall failure.
  */
 export class MazeGame extends BaseMiniGame {
     public wallGracePeriod: number = 2.0;
-    public cellSize: number = 1.6; // 1.6 meters wide for real-world walking
-    public wallHeight: number = 1.8; // 1.8 meters human-height walls
+    public wallHeight: number = 1.8; // Fixed human height: walls NEVER shrink vertically!
     public moveSpeed: number = 2.5;
+
+    // Room dimensions (X = width, Z = depth)
+    public roomWidth: number = 4.0;
+    public roomDepth: number = 4.0;
+    public cellSizeX: number = 0.8;
+    public cellSizeZ: number = 0.8;
 
     // Camera reference for 1:1 physical AR walking
     private camera: THREE.Camera | null = null;
@@ -41,6 +45,10 @@ export class MazeGame extends BaseMiniGame {
     private playerSphere: THREE.Sphere = new THREE.Sphere(new THREE.Vector3(), 0.35); // 0.35m body radius
     private goalItemMesh!: THREE.Mesh;
     private wallBoundingBoxes: THREE.Box3[] = [];
+    private wallMeshes: THREE.Mesh[] = [];
+    private floorMesh!: THREE.Mesh;
+    private startPad!: THREE.Mesh;
+    private endPad!: THREE.Mesh;
 
     // Collision & Grace Period State
     private isCollidingWithWall: boolean = false;
@@ -53,33 +61,63 @@ export class MazeGame extends BaseMiniGame {
     private inputVelocity: THREE.Vector2 = new THREE.Vector2();
     private isUsingKeyboard: boolean = false;
 
-    // 7x7 Walkable Maze Grid (1 = Wall, 0 = Open Path)
-    // S at (1, 1), E at (5, 5)
+    // 5x5 Walkable Maze Grid (Optimal for room-scale walking)
+    // S at (1, 1), E at (3, 3)
     private mazeGrid: number[][] = [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 1, 0, 0, 1], // (1, 1) is Start
-        [1, 1, 0, 1, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 1, 1, 0, 1],
-        [1, 0, 0, 0, 1, 0, 1], // (5, 5) is End Goal
-        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1], // (1, 1) Start corridor
+        [1, 0, 1, 0, 1], // Center barrier
+        [1, 0, 0, 0, 1], // (3, 3) End corridor
+        [1, 1, 1, 1, 1],
     ];
 
     constructor(config?: MazeConfig) {
         super('game_01_maze', 'Sensei Maze Trial', 'item_01_wind_gem');
 
         if (config?.wallGracePeriod !== undefined) this.wallGracePeriod = config.wallGracePeriod;
-        if (config?.cellSize !== undefined) this.cellSize = config.cellSize;
         if (config?.wallHeight !== undefined) this.wallHeight = config.wallHeight;
         if (config?.moveSpeed !== undefined) this.moveSpeed = config.moveSpeed;
+
+        this.calculateCellSizes();
+    }
+
+    private calculateCellSizes(): void {
+        const rows = this.mazeGrid.length;
+        const cols = this.mazeGrid[0].length;
+        this.cellSizeX = this.roomWidth / cols;
+        this.cellSizeZ = this.roomDepth / rows;
     }
 
     /**
-     * Link the AR phone camera to track physical real-world player walking
+     * Calibrate the maze to fit the player's scanned room.
+     * Scales only X and Z to match room dimensions; wall height (Y) remains fixed at 1.8m!
      */
+    public calibrateRoom(corner1: THREE.Vector3, corner2: THREE.Vector3): void {
+        // Measure horizontal floor distances
+        const measuredWidth = Math.abs(corner2.x - corner1.x);
+        const measuredDepth = Math.abs(corner2.z - corner1.z);
+
+        // Enforce safe minimums (at least 2.5m x 2.5m so corridors remain walkable)
+        this.roomWidth = Math.max(measuredWidth, 2.5);
+        this.roomDepth = Math.max(measuredDepth, 2.5);
+
+        // Center the maze container at the floor midpoint between the two corners
+        const centerX = (corner1.x + corner2.x) / 2;
+        const centerZ = (corner1.z + corner2.z) / 2;
+        const floorY = Math.min(corner1.y, corner2.y);
+
+        this.container.position.set(centerX, floorY, centerZ);
+
+        console.log(`[MazeGame] Room calibrated: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m. Wall height strictly fixed at ${this.wallHeight}m.`);
+
+        // Rebuild maze geometry with calibrated X & Z dimensions
+        this.rebuildMaze();
+        this.reset();
+        this.notify(`Room mapped: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m! Maze generated.`, 'success');
+    }
+
     public setCamera(camera: THREE.Camera): void {
         this.camera = camera;
-        console.log('[MazeGame] AR Camera linked for 1:1 physical walking tracking.');
     }
 
     public init(parentContainer: THREE.Group | THREE.Scene | any): void {
@@ -89,14 +127,14 @@ export class MazeGame extends BaseMiniGame {
         this.createPlayer();
         this.setupInputListeners();
 
-        // Attach to Three.js Scene, Object3D, or ZComponent element
+        // Attach to Three.js Scene or parent container
         if (parentContainer && typeof parentContainer.add === 'function') {
             parentContainer.add(this.container);
         } else if (parentContainer?.element && typeof parentContainer.element.add === 'function') {
             parentContainer.element.add(this.container);
         }
 
-        console.log(`[MazeGame] Initialized human-scale walkable maze (${this.cellSize}m corridors).`);
+        console.log(`[MazeGame] Initialized. Wall height: ${this.wallHeight}m.`);
     }
 
     private addLighting(): void {
@@ -112,15 +150,40 @@ export class MazeGame extends BaseMiniGame {
         this.container.add(fillLight);
     }
 
+    private rebuildMaze(): void {
+        // Remove existing walls
+        for (const wall of this.wallMeshes) {
+            this.container.remove(wall);
+            if (wall.geometry) wall.geometry.dispose();
+        }
+        this.wallMeshes = [];
+        this.wallBoundingBoxes = [];
+
+        if (this.floorMesh) {
+            this.container.remove(this.floorMesh);
+            if (this.floorMesh.geometry) this.floorMesh.geometry.dispose();
+        }
+
+        // Recompute cell sizes and build
+        this.calculateCellSizes();
+        this.buildMaze();
+
+        // Reposition pads
+        if (this.startPad) this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
+        if (this.endPad) this.endPad.position.set(this.endPoint.x, 0.05, this.endPoint.z);
+        if (this.goalItemMesh) this.goalItemMesh.position.set(this.endPoint.x, 1.3, this.endPoint.z);
+    }
+
     private buildMaze(): void {
         const rows = this.mazeGrid.length;
         const cols = this.mazeGrid[0].length;
-        const offsetX = (cols * this.cellSize) / 2;
-        const offsetZ = (rows * this.cellSize) / 2;
+        const offsetX = (cols * this.cellSizeX) / 2;
+        const offsetZ = (rows * this.cellSizeZ) / 2;
 
-        const wallGeometry = new THREE.BoxGeometry(this.cellSize, this.wallHeight, this.cellSize);
+        // Wall geometry: X and Z scale to the room; Y (height) is FIXED at this.wallHeight!
+        const wallGeometry = new THREE.BoxGeometry(this.cellSizeX, this.wallHeight, this.cellSizeZ);
         
-        // Semi-transparent AR holographic walls so player can see real-world room obstacles
+        // Semi-transparent AR holographic walls (safe for indoor walking)
         const wallMaterial = new THREE.MeshStandardMaterial({
             color: 0x2563eb,
             emissive: 0x1d4ed8,
@@ -132,40 +195,39 @@ export class MazeGame extends BaseMiniGame {
         });
 
         // Floor guidelines
-        const floorGeo = new THREE.PlaneGeometry(cols * this.cellSize, rows * this.cellSize);
+        const floorGeo = new THREE.PlaneGeometry(cols * this.cellSizeX, rows * this.cellSizeZ);
         const floorMat = new THREE.MeshStandardMaterial({
             color: 0x0f172a,
             transparent: true,
             opacity: 0.4
         });
-        const floorMesh = new THREE.Mesh(floorGeo, floorMat);
-        floorMesh.rotation.x = -Math.PI / 2;
-        floorMesh.position.set(0, 0, 0);
-        this.container.add(floorMesh);
+        this.floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        this.floorMesh.rotation.x = -Math.PI / 2;
+        this.floorMesh.position.set(0, 0, 0);
+        this.container.add(this.floorMesh);
 
         // Build walls and bounding boxes
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
-                const posX = c * this.cellSize - offsetX + this.cellSize / 2;
-                const posZ = r * this.cellSize - offsetZ + this.cellSize / 2;
+                const posX = c * this.cellSizeX - offsetX + this.cellSizeX / 2;
+                const posZ = r * this.cellSizeZ - offsetZ + this.cellSizeZ / 2;
 
                 if (this.mazeGrid[r][c] === 1) {
                     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
                     wall.position.set(posX, this.wallHeight / 2, posZ);
                     this.container.add(wall);
+                    this.wallMeshes.push(wall);
 
                     // Add bounding box for collision detection with player's body
                     const box = new THREE.Box3();
                     box.setFromCenterAndSize(
                         wall.position,
-                        new THREE.Vector3(this.cellSize, this.wallHeight * 2, this.cellSize)
+                        new THREE.Vector3(this.cellSizeX, this.wallHeight * 2, this.cellSizeZ)
                     );
                     this.wallBoundingBoxes.push(box);
                 } else if (r === 1 && c === 1) {
-                    // Start position on the floor
                     this.startPoint.set(posX, 0, posZ);
-                } else if (r === 5 && c === 5) {
-                    // End position on the floor
+                } else if (r === 3 && c === 3) {
                     this.endPoint.set(posX, 0, posZ);
                 }
             }
@@ -173,19 +235,21 @@ export class MazeGame extends BaseMiniGame {
     }
 
     private createStartAndEndPads(): void {
+        const padRadius = Math.min(this.cellSizeX, this.cellSizeZ) * 0.4;
+
         // Start pad (Green glowing floor ring)
-        const startPadGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.05, 32);
+        const startPadGeo = new THREE.CylinderGeometry(padRadius, padRadius, 0.05, 32);
         const startPadMat = new THREE.MeshStandardMaterial({
             color: 0x00ff88,
             emissive: 0x00ff88,
             emissiveIntensity: 0.7
         });
-        const startPad = new THREE.Mesh(startPadGeo, startPadMat);
-        startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
-        this.container.add(startPad);
+        this.startPad = new THREE.Mesh(startPadGeo, startPadMat);
+        this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
+        this.container.add(this.startPad);
 
-        // End pad / Pedestal (Gold cylinder)
-        const endPadGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.1, 32);
+        // End pad (Gold cylinder)
+        const endPadGeo = new THREE.CylinderGeometry(padRadius, padRadius, 0.1, 32);
         const endPadMat = new THREE.MeshStandardMaterial({
             color: 0xffaa00,
             emissive: 0xff8800,
@@ -193,12 +257,12 @@ export class MazeGame extends BaseMiniGame {
             metalness: 0.8,
             roughness: 0.2
         });
-        const endPad = new THREE.Mesh(endPadGeo, endPadMat);
-        endPad.position.set(this.endPoint.x, 0.05, this.endPoint.z);
-        this.container.add(endPad);
+        this.endPad = new THREE.Mesh(endPadGeo, endPadMat);
+        this.endPad.position.set(this.endPoint.x, 0.05, this.endPoint.z);
+        this.container.add(this.endPad);
 
-        // Special Item 3D Mesh floating at eye height (~1.4m) over end pad
-        const itemGeo = new THREE.OctahedronGeometry(0.35, 0);
+        // Special Item floating at eye height (~1.3m) over end pad
+        const itemGeo = new THREE.OctahedronGeometry(0.3, 0);
         const itemMat = new THREE.MeshStandardMaterial({
             color: 0xffd700,
             emissive: 0xffaa00,
@@ -206,13 +270,12 @@ export class MazeGame extends BaseMiniGame {
             roughness: 0.1
         });
         this.goalItemMesh = new THREE.Mesh(itemGeo, itemMat);
-        this.goalItemMesh.position.set(this.endPoint.x, 1.4, this.endPoint.z);
+        this.goalItemMesh.position.set(this.endPoint.x, 1.3, this.endPoint.z);
         this.container.add(this.goalItemMesh);
     }
 
     private createPlayer(): void {
-        // Visual pawn representation (visible on floor as player body footprint)
-        const radius = 0.35; // 0.35m radius representing human body
+        const radius = 0.3; // 0.3m radius representing player footprint
         const playerGeo = new THREE.CylinderGeometry(radius, radius, 0.1, 24);
         this.playerMaterial = new THREE.MeshStandardMaterial({
             color: this.normalPlayerColor,
@@ -237,7 +300,7 @@ export class MazeGame extends BaseMiniGame {
     public override reset(): void {
         this.resetPlayerPosition();
         this.isWaitingForPhysicalReturn = false;
-        this.notify('Ready at Start Pad! Navigate through the maze corridors.', 'info');
+        this.notify('Ready at Start Pad! Navigate through the corridors.', 'info');
     }
 
     public setMovementInput(dx: number, dz: number): void {
@@ -249,24 +312,21 @@ export class MazeGame extends BaseMiniGame {
     }
 
     protected onUpdate(deltaTime: number): void {
-        // 1. Animate floating special item
+        // Animate floating special item
         if (this.goalItemMesh) {
             this.goalItemMesh.rotation.y += deltaTime * 1.5;
             this.goalItemMesh.rotation.x += deltaTime * 0.5;
         }
 
-        // 2. Track Player Position:
-        // Physical Real-World Walking: Use AR Camera position
+        // Track Player Position
         if (this.camera && !this.isUsingKeyboard) {
             this.camera.getWorldPosition(this.tempWorldPos);
             this.tempLocalPos.copy(this.tempWorldPos);
             this.container.worldToLocal(this.tempLocalPos);
 
-            // Project camera's X, Z position to the floor
             this.playerMesh.position.set(this.tempLocalPos.x, 0.05, this.tempLocalPos.z);
             this.playerSphere.center.set(this.tempLocalPos.x, 0.5, this.tempLocalPos.z);
         } else if (this.isUsingKeyboard && this.inputVelocity.lengthSq() > 0.001) {
-            // Desktop fallback simulation
             const moveDeltaX = this.inputVelocity.x * this.moveSpeed * deltaTime;
             const moveDeltaZ = this.inputVelocity.y * this.moveSpeed * deltaTime;
 
@@ -275,11 +335,10 @@ export class MazeGame extends BaseMiniGame {
             this.playerSphere.center.set(this.playerMesh.position.x, 0.5, this.playerMesh.position.z);
         }
 
-        // 3. Physical Return-to-Start Check:
-        // If the player failed by staying inside a wall, they must physically walk back to Start
+        // Physical Return-to-Start Check
         if (this.isWaitingForPhysicalReturn) {
             const distToStart = new THREE.Vector2(this.playerSphere.center.x - this.startPoint.x, this.playerSphere.center.z - this.startPoint.z).length();
-            if (distToStart < 1.0) {
+            if (distToStart < 0.9) {
                 this.isWaitingForPhysicalReturn = false;
                 this.reset();
                 this.notify('✅ Returned to Start Pad! Maze restarted.', 'success');
@@ -287,7 +346,7 @@ export class MazeGame extends BaseMiniGame {
             return;
         }
 
-        // 4. Wall Collision Check:
+        // Wall Collision Check
         let touchingAnyWall = false;
         for (const wallBox of this.wallBoundingBoxes) {
             if (wallBox.intersectsSphere(this.playerSphere)) {
@@ -296,20 +355,17 @@ export class MazeGame extends BaseMiniGame {
             }
         }
 
-        // 5. Grace Period & Warning Logic
+        // Grace Period & Warning Logic
         if (touchingAnyWall) {
             if (!this.isCollidingWithWall) {
-                // First instant entering the wall
                 this.isCollidingWithWall = true;
                 this.wallCollisionTimer = 0;
                 this.setPlayerVisualState('warning');
                 this.notify('⚠️ Warning: You cannot walk through walls! Step back immediately!', 'warning');
             } else {
-                // Increment timer while inside the wall
                 this.wallCollisionTimer += deltaTime;
 
                 if (this.wallCollisionTimer >= this.wallGracePeriod) {
-                    // FAILED: Player stayed in the wall too long
                     this.isWaitingForPhysicalReturn = true;
                     this.isCollidingWithWall = false;
                     this.wallCollisionTimer = 0;
@@ -319,9 +375,7 @@ export class MazeGame extends BaseMiniGame {
                 }
             }
         } else {
-            // Player is safely in the open corridor
             if (this.isCollidingWithWall) {
-                // Stepped back in time!
                 this.isCollidingWithWall = false;
                 this.wallCollisionTimer = 0;
                 this.setPlayerVisualState('normal');
@@ -329,9 +383,10 @@ export class MazeGame extends BaseMiniGame {
             }
         }
 
-        // 6. Win Condition: Physically reached the End Pad
+        // Win Condition
         const distToEnd = new THREE.Vector2(this.playerSphere.center.x - this.endPoint.x, this.playerSphere.center.z - this.endPoint.z).length();
-        if (distToEnd < 1.1) {
+        const goalThreshold = Math.min(this.cellSizeX, this.cellSizeZ) * 0.6;
+        if (distToEnd < goalThreshold) {
             this.onWin();
         }
     }
