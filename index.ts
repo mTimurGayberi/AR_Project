@@ -166,8 +166,12 @@ for (let i = 2; i <= 10; i++) {
 // Automatically hook up custom visual scene nodes if created by 3D artist in Mattercraft!
 const sceneNodes = (instance?.nodes as any) || {};
 
-// Forgiving node lookup: supports 'Walls', 'Colliders', 'Colliders/Walls', 'Game_1_Maze', with or without spaces
-const wallsGroup = sceneNodes['Colliders/Walls']
+// Forgiving node lookup: supports 'mazeWalls.glb', 'Walls', 'Colliders', 'Colliders/Walls', 'Game_1_Maze'
+const wallsGroup = sceneNodes['mazeWalls.glb']
+                || sceneNodes['mazeWalls_glb']
+                || sceneNodes.mazeWalls
+                || sceneNodes['mazeWalls']
+                || sceneNodes['Colliders/Walls']
                 || sceneNodes.Colliders 
                 || sceneNodes.Walls 
                 || sceneNodes['Colliders_Walls']
