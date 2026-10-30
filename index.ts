@@ -9,8 +9,9 @@ console.log("=== SENSEI AR 10 MINI-GAMES SYSTEM ===");
 // 1. Create and register the first mini-game (Maze)
 // Dimensions and colliders are dynamically auto-detected from whatever is in Mattercraft!
 const mazeGame = new MazeGame({
-    wallGracePeriod: 2.0,  // Seconds warning before penalty reset
-    moveSpeed: 3.0         // Keyboard dev simulation speed
+    wallGracePeriod: 2.0,    // Seconds warning before penalty reset
+    collisionDistance: 0.25,  // Proximity threshold in meters (0.25m = ~10 inches. Lower = less sensitive, e.g. 0.20m)
+    moveSpeed: 3.0           // Keyboard dev simulation speed
 });
 
 gameManager.registerGame(mazeGame);

@@ -3,12 +3,13 @@ import { BaseMiniGame } from './BaseMiniGame';
 import type { RoomBounds } from './RoomScanner';
 
 export interface MazeConfig {
-    wallGracePeriod?: number; // Duration in seconds (e.g. 2.0s) before penalty reset
-    wallHeight?: number;      // Fixed height of walls in meters (always human-height, e.g. 1.8m)
-    cellSize?: number;        // Optional corridor cell size
-    moveSpeed?: number;       // Desktop dev simulation speed
-    roomWidth?: number;       // Fixed room width in meters (e.g. 4.0m - 6.0m)
-    roomDepth?: number;       // Fixed room depth in meters (e.g. 4.0m - 6.0m)
+    wallGracePeriod?: number;   // Duration in seconds (e.g. 2.0s) before penalty reset
+    collisionDistance?: number; // Proximity in meters to trigger warning (default 0.25m, lower = less sensitive)
+    wallHeight?: number;        // Fixed height of walls in meters (always human-height, e.g. 1.8m)
+    cellSize?: number;          // Optional corridor cell size
+    moveSpeed?: number;         // Desktop dev simulation speed
+    roomWidth?: number;         // Fixed room width in meters (e.g. 4.0m - 6.0m)
+    roomDepth?: number;         // Fixed room depth in meters (e.g. 4.0m - 6.0m)
 }
 
 /**
@@ -25,6 +26,7 @@ export interface MazeConfig {
  */
 export class MazeGame extends BaseMiniGame {
     public wallGracePeriod: number = 2.0;
+    public collisionDistance: number = 0.25; // 0.25m (tune this in index.ts: lower = less sensitive, higher = more sensitive)
     public wallHeight: number = 2.2; // 2.2m tall bamboo walls for the high ceiling campus room!
     public moveSpeed: number = 3.0;
 
@@ -85,6 +87,7 @@ export class MazeGame extends BaseMiniGame {
         super('game_01_maze', 'Sensei Maze Trial', 'item_01_wind_gem');
 
         if (config?.wallGracePeriod !== undefined) this.wallGracePeriod = config.wallGracePeriod;
+        if (config?.collisionDistance !== undefined) this.collisionDistance = config.collisionDistance;
         if (config?.wallHeight !== undefined) this.wallHeight = config.wallHeight;
         if (config?.moveSpeed !== undefined) this.moveSpeed = config.moveSpeed;
         if (config?.roomWidth !== undefined) this.roomWidth = config.roomWidth;
@@ -276,18 +279,8 @@ export class MazeGame extends BaseMiniGame {
                     }
                 }
 
+                // Add wall mesh for precise 360-degree polygon raycasting
                 foundMeshes.push(child);
-
-                // If it's an individual wall segment (< 4.0m), store bounding box
-                if (size.x < 4.0 || size.z < 4.0) {
-                    const minLocal = this.container.worldToLocal(worldBox.min.clone());
-                    const maxLocal = this.container.worldToLocal(worldBox.max.clone());
-                    const localBox = new THREE.Box3();
-                    localBox.setFromPoints([minLocal, maxLocal]);
-                    localBox.min.y = -0.5;
-                    localBox.max.y = 2.5;
-                    this.wallBoundingBoxes.push(localBox);
-                }
             }
         });
 
@@ -549,7 +542,7 @@ export class MazeGame extends BaseMiniGame {
             this.playerMesh.getWorldPosition(worldCenter);
             worldCenter.y += 0.8; // Waist height
 
-            const checkDistance = 0.55; // 0.55m body proximity threshold
+            const checkDistance = this.collisionDistance; // Proximity threshold (e.g. 0.25m, tuned in index.ts)
 
             for (const dir of this.rayDirections) {
                 this.raycaster.set(worldCenter, dir);
