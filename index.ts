@@ -144,13 +144,24 @@ cameraObservable.addListener((activeCam) => {
     mazeGame.setCamera(activeCam);
 });
 
-// 5. Anchor Maze directly to Ground Anchor / Level Anchor
-const groundNode = (instance?.nodes as any)?.Ground_Anchor?.element
-                || (instance?.nodes as any)?.UserPlacementAnchorGroup?.element
-                || (instance?.nodes as any)?.WorldTracker?.element
-                || threeScene;
+// 5. Anchor Maze directly to your Game_1_Maze group (or Ground Anchor fallback)
+const game1Container = (instance?.nodes as any)?.Game_1_Maze?.element
+                    || (instance?.nodes as any)?.['Game_1_Maze']?.element
+                    || (instance?.nodes as any)?.Ground_Anchor?.element
+                    || (instance?.nodes as any)?.UserPlacementAnchorGroup?.element
+                    || (instance?.nodes as any)?.WorldTracker?.element
+                    || threeScene;
 
-mazeGame.init(groundNode);
+mazeGame.init(game1Container);
+
+// Hide placeholders for future games (Game 2 to 10) so only Game 1 is active
+for (let i = 2; i <= 10; i++) {
+    const placeholder = (instance?.nodes as any)?.[`Game_${i}_[Placeholder]`]?.element
+                     || (instance?.nodes as any)?.[`Game_${i}`]?.element;
+    if (placeholder) {
+        placeholder.visible = false;
+    }
+}
 
 // Automatically hook up custom visual scene nodes if created by 3D artist in Mattercraft!
 const sceneNodes = (instance?.nodes as any) || {};
