@@ -19,8 +19,30 @@ gameManager.setActiveGame(mazeGame.id);
 
 let updateCounterUI: () => void = () => {};
 
-// 2. Setup HUD Notification Display
+function formatTime(totalSeconds: number): string {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = Math.floor(totalSeconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// 2. Setup HUD Notification Display & Bottom Action Bar
 function createHUD() {
+    // Failure / Warning Screen Vignette Overlay
+    const failVignette = document.createElement('div');
+    failVignette.id = 'hud-vignette';
+    failVignette.style.position = 'fixed';
+    failVignette.style.top = '0';
+    failVignette.style.left = '0';
+    failVignette.style.width = '100vw';
+    failVignette.style.height = '100vh';
+    failVignette.style.pointerEvents = 'none';
+    failVignette.style.zIndex = '999990';
+    failVignette.style.opacity = '0';
+    failVignette.style.transition = 'opacity 0.3s ease';
+    failVignette.style.boxShadow = 'inset 0 0 60px 20px rgba(239, 68, 68, 0.75)';
+    document.body.appendChild(failVignette);
+
+    // Top HUD Container
     const hudContainer = document.createElement('div');
     hudContainer.id = 'game-hud';
     hudContainer.style.position = 'fixed';
@@ -33,23 +55,28 @@ function createHUD() {
     hudContainer.style.alignItems = 'center';
     hudContainer.style.pointerEvents = 'none';
     hudContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    hudContainer.style.width = '90%';
+    hudContainer.style.maxWidth = '460px';
 
     const counterPill = document.createElement('div');
     counterPill.id = 'hud-counter';
-    counterPill.style.background = 'rgba(15, 23, 42, 0.85)';
+    counterPill.style.background = 'rgba(15, 23, 42, 0.88)';
     counterPill.style.color = '#38bdf8';
-    counterPill.style.border = '1px solid rgba(56, 189, 248, 0.3)';
+    counterPill.style.border = '1px solid rgba(56, 189, 248, 0.35)';
     counterPill.style.borderRadius = '20px';
     counterPill.style.padding = '8px 18px';
-    counterPill.style.fontSize = '14px';
+    counterPill.style.fontSize = '13px';
     counterPill.style.fontWeight = 'bold';
-    counterPill.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
-    (counterPill.style as any).backdropFilter = 'blur(6px)';
+    counterPill.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+    counterPill.style.textAlign = 'center';
+    (counterPill.style as any).backdropFilter = 'blur(8px)';
+    (counterPill.style as any).webkitBackdropFilter = 'blur(8px)';
 
     updateCounterUI = () => {
         const prog = gameManager.getProgression();
         const walls = mazeGame.getLoadedCollidersCount();
-        counterPill.innerText = `🔮 Special Items: ${prog.collected} / ${prog.total} | 🛡️ Walls: ${walls}`;
+        const elapsed = mazeGame.getElapsedTime();
+        counterPill.innerText = `🔮 Items: ${prog.collected} / ${prog.total} | ⏱️ ${formatTime(elapsed)} | 🛡️ Walls: ${walls}`;
     };
     updateCounterUI();
     hudContainer.appendChild(counterPill);
@@ -57,41 +84,136 @@ function createHUD() {
     const alertBanner = document.createElement('div');
     alertBanner.id = 'hud-banner';
     alertBanner.style.marginTop = '10px';
-    alertBanner.style.padding = '10px 20px';
-    alertBanner.style.borderRadius = '8px';
+    alertBanner.style.padding = '10px 18px';
+    alertBanner.style.borderRadius = '10px';
     alertBanner.style.fontSize = '14px';
     alertBanner.style.fontWeight = '600';
     alertBanner.style.display = 'none';
-    alertBanner.style.transition = 'all 0.3s ease';
+    alertBanner.style.textAlign = 'center';
+    alertBanner.style.transition = 'all 0.25s ease';
+    alertBanner.style.pointerEvents = 'none';
+    (alertBanner.style as any).backdropFilter = 'blur(6px)';
+    (alertBanner.style as any).webkitBackdropFilter = 'blur(6px)';
     hudContainer.appendChild(alertBanner);
 
     document.body.appendChild(hudContainer);
 
+    let hideBannerTimer: any = null;
+
     mazeGame.onNotification = (message, type) => {
+        if (hideBannerTimer) {
+            clearTimeout(hideBannerTimer);
+            hideBannerTimer = null;
+        }
+
         alertBanner.innerText = message;
         alertBanner.style.display = 'block';
 
-        if (type === 'warning') {
-            alertBanner.style.background = 'rgba(239, 68, 68, 0.9)';
+        if (type === 'error') {
+            // Real Failure State: Bright red, glowing, STICKY until physical return or restart!
+            alertBanner.style.background = 'rgba(220, 38, 38, 0.95)';
             alertBanner.style.color = '#ffffff';
-            alertBanner.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.6)';
+            alertBanner.style.border = '1px solid rgba(254, 202, 202, 0.5)';
+            alertBanner.style.boxShadow = '0 0 20px rgba(220, 38, 38, 0.85)';
+            failVignette.style.opacity = '1';
+            // Notice: No auto-hide timeout for error! Must physically return or tap Restart.
+        } else if (type === 'warning') {
+            alertBanner.style.background = 'rgba(234, 88, 12, 0.95)';
+            alertBanner.style.color = '#ffffff';
+            alertBanner.style.border = '1px solid rgba(253, 186, 116, 0.5)';
+            alertBanner.style.boxShadow = '0 0 16px rgba(234, 88, 12, 0.75)';
+            failVignette.style.opacity = '0.35';
         } else if (type === 'success') {
-            alertBanner.style.background = 'rgba(16, 185, 129, 0.9)';
+            alertBanner.style.background = 'rgba(16, 185, 129, 0.95)';
             alertBanner.style.color = '#ffffff';
-            alertBanner.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.6)';
+            alertBanner.style.border = '1px solid rgba(167, 243, 208, 0.5)';
+            alertBanner.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.75)';
+            failVignette.style.opacity = '0';
             updateCounterUI();
+            hideBannerTimer = setTimeout(() => {
+                alertBanner.style.display = 'none';
+            }, 3500);
         } else {
-            alertBanner.style.background = 'rgba(30, 41, 59, 0.85)';
+            alertBanner.style.background = 'rgba(30, 41, 59, 0.9)';
             alertBanner.style.color = '#e2e8f0';
-            alertBanner.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
-        }
-
-        if (type !== 'warning') {
-            setTimeout(() => {
+            alertBanner.style.border = '1px solid rgba(148, 163, 184, 0.3)';
+            alertBanner.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+            failVignette.style.opacity = '0';
+            hideBannerTimer = setTimeout(() => {
                 alertBanner.style.display = 'none';
             }, 3500);
         }
     };
+
+    // Bottom Action Buttons (Mobile WebAR Touch Friendly)
+    const bottomControls = document.createElement('div');
+    bottomControls.id = 'hud-bottom-controls';
+    bottomControls.style.position = 'fixed';
+    bottomControls.style.bottom = '24px';
+    bottomControls.style.left = '50%';
+    bottomControls.style.transform = 'translateX(-50%)';
+    bottomControls.style.zIndex = '999999';
+    bottomControls.style.display = 'flex';
+    bottomControls.style.gap = '12px';
+    bottomControls.style.pointerEvents = 'auto';
+    bottomControls.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+
+    // 1. Restart Current Game Button
+    const restartBtn = document.createElement('button');
+    restartBtn.innerText = '🔄 Restart Trial';
+    restartBtn.style.background = 'rgba(15, 23, 42, 0.88)';
+    restartBtn.style.color = '#38bdf8';
+    restartBtn.style.border = '1px solid rgba(56, 189, 248, 0.45)';
+    restartBtn.style.borderRadius = '24px';
+    restartBtn.style.padding = '10px 18px';
+    restartBtn.style.fontSize = '14px';
+    restartBtn.style.fontWeight = 'bold';
+    restartBtn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+    restartBtn.style.cursor = 'pointer';
+    restartBtn.style.outline = 'none';
+    (restartBtn.style as any).backdropFilter = 'blur(8px)';
+    (restartBtn.style as any).webkitBackdropFilter = 'blur(8px)';
+    restartBtn.onclick = () => {
+        failVignette.style.opacity = '0';
+        mazeGame.restartTrial();
+    };
+
+    // 2. Reset All 10 Mini-Games Progress Button
+    const resetAllBtn = document.createElement('button');
+    resetAllBtn.innerText = '⚙️ Reset Quest';
+    resetAllBtn.style.background = 'rgba(15, 23, 42, 0.88)';
+    resetAllBtn.style.color = '#fda4af';
+    resetAllBtn.style.border = '1px solid rgba(244, 63, 94, 0.45)';
+    resetAllBtn.style.borderRadius = '24px';
+    resetAllBtn.style.padding = '10px 18px';
+    resetAllBtn.style.fontSize = '14px';
+    resetAllBtn.style.fontWeight = 'bold';
+    resetAllBtn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+    resetAllBtn.style.cursor = 'pointer';
+    resetAllBtn.style.outline = 'none';
+    (resetAllBtn.style as any).backdropFilter = 'blur(8px)';
+    (resetAllBtn.style as any).webkitBackdropFilter = 'blur(8px)';
+    resetAllBtn.onclick = () => {
+        const confirmed = window.confirm('Reset ALL quest progress back to 0/10 special items?');
+        if (confirmed) {
+            failVignette.style.opacity = '0';
+            gameManager.resetAllProgress();
+            gameManager.setActiveGame(mazeGame.id);
+            mazeGame.restartTrial();
+            updateCounterUI();
+            mazeGame.notify('🧹 Quest reset! 0/10 items collected.', 'info');
+        }
+    };
+
+    // Tactile touch reactions for mobile
+    [restartBtn, resetAllBtn].forEach(btn => {
+        btn.addEventListener('touchstart', () => { btn.style.transform = 'scale(0.95)'; });
+        btn.addEventListener('touchend', () => { btn.style.transform = 'scale(1.0)'; });
+    });
+
+    bottomControls.appendChild(restartBtn);
+    bottomControls.appendChild(resetAllBtn);
+    document.body.appendChild(bottomControls);
 }
 
 if (typeof document !== 'undefined') {

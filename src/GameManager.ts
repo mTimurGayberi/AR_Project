@@ -76,6 +76,15 @@ export class GameManager {
         return this.games.get(this.activeGameId) || null;
     }
 
+    public restartActiveGame(): void {
+        const game = this.getActiveGame();
+        if (game) {
+            game.reset();
+            game.start();
+            console.log(`[GameManager] Restarted active game: ${game.name}`);
+        }
+    }
+
     public updateActiveGame(deltaTime: number): void {
         const game = this.getActiveGame();
         if (game && game.isActive) {
@@ -157,11 +166,22 @@ export class GameManager {
         }
     }
 
-    public resetAllProgress(): void {
+    public resetAllProgress(keepActiveGame: boolean = true): void {
+        const prevActiveId = this.activeGameId;
         this.collectedItems.clear();
-        this.activeGameId = null;
+        this.questManager = new QuestManager();
         this.saveManager.clearSave();
-        console.log('[GameManager] All progress has been reset.');
+        if (keepActiveGame && prevActiveId) {
+            this.setActiveGame(prevActiveId);
+            const game = this.getActiveGame();
+            if (game) {
+                game.reset();
+                game.start();
+            }
+        } else {
+            this.activeGameId = null;
+        }
+        console.log('[GameManager] All progress has been reset to 0/10 items.');
     }
 }
 

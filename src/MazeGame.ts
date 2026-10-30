@@ -65,6 +65,8 @@ export class MazeGame extends BaseMiniGame {
     private isCollidingWithWall: boolean = false;
     private wallCollisionTimer: number = 0;
     private isWaitingForPhysicalReturn: boolean = false;
+    private returnNotifyTimer: number = 0;
+    private graceNotifyTimer: number = 0;
     private normalPlayerColor: number = 0x00d2ff; // Bright cyan
     private warningPlayerColor: number = 0xff2222; // Glowing red warning
 
@@ -174,10 +176,53 @@ export class MazeGame extends BaseMiniGame {
     }
 
     private rawWallsNode: any = null;
+    private startPadObjRef: any = null;
+    private endPadObjRef: any = null;
     private lastMeshScanTime: number = 0;
 
     public getLoadedCollidersCount(): number {
         return this.customWallMeshes.length;
+    }
+
+    public updateStartPoint(): void {
+        if (!this.startPadObjRef) return;
+        this.startPadObjRef.updateMatrixWorld(true);
+        this.container.updateMatrixWorld(true);
+        const worldPos = new THREE.Vector3();
+        this.startPadObjRef.getWorldPosition(worldPos);
+        this.container.worldToLocal(worldPos);
+        this.startPoint.set(worldPos.x, 0, worldPos.z);
+    }
+
+    public updateEndPoint(): void {
+        if (!this.endPadObjRef) return;
+        this.endPadObjRef.updateMatrixWorld(true);
+        this.container.updateMatrixWorld(true);
+        const worldPos = new THREE.Vector3();
+        this.endPadObjRef.getWorldPosition(worldPos);
+        this.container.worldToLocal(worldPos);
+        this.endPoint.set(worldPos.x, 0, worldPos.z);
+    }
+
+    public getStartPoint(): THREE.Vector3 {
+        this.updateStartPoint();
+        return this.startPoint;
+    }
+
+    public getEndPoint(): THREE.Vector3 {
+        this.updateEndPoint();
+        return this.endPoint;
+    }
+
+    public getIsWaitingForPhysicalReturn(): boolean {
+        return this.isWaitingForPhysicalReturn;
+    }
+
+    public getDistanceToStart(): number {
+        this.updateStartPoint();
+        const dx = this.playerSphere.center.x - this.startPoint.x;
+        const dz = this.playerSphere.center.z - this.startPoint.z;
+        return Math.sqrt(dx * dx + dz * dz);
     }
 
     /**
@@ -203,19 +248,15 @@ export class MazeGame extends BaseMiniGame {
         }
 
         if (startPadObj) {
-            const worldPos = new THREE.Vector3();
-            startPadObj.getWorldPosition(worldPos);
-            this.container.worldToLocal(worldPos);
-            this.startPoint.set(worldPos.x, 0, worldPos.z);
+            this.startPadObjRef = startPadObj;
+            this.updateStartPoint();
             this.resetPlayerPosition();
             console.log(`[MazeGame] Start pad bound to (${this.startPoint.x.toFixed(2)}, ${this.startPoint.z.toFixed(2)})`);
         }
 
         if (endPadObj) {
-            const worldPos = new THREE.Vector3();
-            endPadObj.getWorldPosition(worldPos);
-            this.container.worldToLocal(worldPos);
-            this.endPoint.set(worldPos.x, 0, worldPos.z);
+            this.endPadObjRef = endPadObj;
+            this.updateEndPoint();
             console.log(`[MazeGame] End pad bound to (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})`);
         }
 
@@ -459,18 +500,39 @@ export class MazeGame extends BaseMiniGame {
     }
 
     public resetPlayerPosition(): void {
+        this.updateStartPoint();
         this.playerMesh.position.copy(this.startPoint);
         this.playerSphere.center.set(this.startPoint.x, 0.5, this.startPoint.z);
         this.inputVelocity.set(0, 0);
         this.isCollidingWithWall = false;
         this.wallCollisionTimer = 0;
+        this.graceNotifyTimer = 0;
+        this.returnNotifyTimer = 0;
         this.setPlayerVisualState('normal');
     }
 
     public override reset(): void {
         this.resetPlayerPosition();
         this.isWaitingForPhysicalReturn = false;
+        this.resetTimer();
+        if (this.goalItemMesh) {
+            this.goalItemMesh.visible = true;
+        }
         this.notify('Ready at Start Pad! Navigate through the corridors.', 'info');
+    }
+
+    /**
+     * Restart current trial immediately (can be called manually from UI button or upon failure reset)
+     */
+    public restartTrial(): void {
+        this.isWaitingForPhysicalReturn = false;
+        this.isCollidingWithWall = false;
+        this.wallCollisionTimer = 0;
+        this.graceNotifyTimer = 0;
+        this.returnNotifyTimer = 0;
+        this.reset();
+        this.start();
+        this.notify('🔄 Trial restarted! Ready at green Start Pad.', 'info');
     }
 
     public setMovementInput(dx: number, dz: number): void {
@@ -489,6 +551,14 @@ export class MazeGame extends BaseMiniGame {
                 this.lastMeshScanTime = 0;
                 this.scanWallMeshes();
             }
+        }
+
+        // Dynamically track custom artist pads if present
+        if (this.startPadObjRef) {
+            this.updateStartPoint();
+        }
+        if (this.endPadObjRef) {
+            this.updateEndPoint();
         }
 
         // Animate floating special item
@@ -516,11 +586,24 @@ export class MazeGame extends BaseMiniGame {
 
         // Physical Return-to-Start Check
         if (this.isWaitingForPhysicalReturn) {
-            const distToStart = new THREE.Vector2(this.playerSphere.center.x - this.startPoint.x, this.playerSphere.center.z - this.startPoint.z).length();
-            if (distToStart < 0.9) {
+            const distToStart = this.getDistanceToStart();
+
+            this.returnNotifyTimer += deltaTime;
+            if (this.returnNotifyTimer >= 0.5) {
+                this.returnNotifyTimer = 0;
+                this.notify(`⛔ TRIAL FAILED: Hit Wall! Walk back to Start Pad (${distToStart.toFixed(1)}m)`, 'error');
+            }
+
+            // When player steps within 1.5m of the physical Start Pad, trial restarts!
+            if (distToStart < 1.5) {
                 this.isWaitingForPhysicalReturn = false;
+                this.returnNotifyTimer = 0;
                 this.reset();
-                this.notify('✅ Returned to Start Pad! Maze restarted.', 'success');
+                this.start();
+                this.notify('✅ Back at Start Pad! Trial restarted. GO!', 'success');
+                if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
+                    try { (navigator as any).vibrate(150); } catch (e) {}
+                }
             }
             return;
         }
@@ -560,17 +643,33 @@ export class MazeGame extends BaseMiniGame {
             if (!this.isCollidingWithWall) {
                 this.isCollidingWithWall = true;
                 this.wallCollisionTimer = 0;
+                this.graceNotifyTimer = 0;
                 this.setPlayerVisualState('warning');
-                this.notify('⚠️ Warning: You cannot walk through walls! Step back immediately!', 'warning');
+                this.notify('⚠️ Warning: Wall contact! Step back immediately!', 'warning');
+                if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
+                    try { (navigator as any).vibrate(100); } catch (e) {}
+                }
             } else {
                 this.wallCollisionTimer += deltaTime;
+                this.graceNotifyTimer += deltaTime;
+
+                if (this.graceNotifyTimer >= 0.35) {
+                    this.graceNotifyTimer = 0;
+                    const remaining = Math.max(0, this.wallGracePeriod - this.wallCollisionTimer);
+                    this.notify(`⚠️ Step back from wall! Penalty in ${remaining.toFixed(1)}s`, 'warning');
+                }
 
                 if (this.wallCollisionTimer >= this.wallGracePeriod) {
                     this.isWaitingForPhysicalReturn = true;
                     this.isCollidingWithWall = false;
                     this.wallCollisionTimer = 0;
+                    this.graceNotifyTimer = 0;
+                    this.stopTimer(); // Halt trial timer on failure!
                     this.setPlayerVisualState('warning');
-                    this.notify('⛔ Wall penalty! Turn around and physically walk back to the green Start Pad.', 'error');
+                    this.notify('⛔ TRIAL FAILED: Hit Wall! Walk back to green Start Pad to retry.', 'error');
+                    if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
+                        try { (navigator as any).vibrate([250, 100, 250]); } catch (e) {}
+                    }
                     return;
                 }
             }
@@ -578,6 +677,7 @@ export class MazeGame extends BaseMiniGame {
             if (this.isCollidingWithWall) {
                 this.isCollidingWithWall = false;
                 this.wallCollisionTimer = 0;
+                this.graceNotifyTimer = 0;
                 this.setPlayerVisualState('normal');
                 this.notify('Safe! You stepped back into the path.', 'info');
             }
@@ -586,7 +686,8 @@ export class MazeGame extends BaseMiniGame {
         // Win Condition
         const distToEnd = new THREE.Vector2(this.playerSphere.center.x - this.endPoint.x, this.playerSphere.center.z - this.endPoint.z).length();
         const goalThreshold = Math.min(this.cellSizeX, this.cellSizeZ) * 0.6;
-        if (distToEnd < goalThreshold) {
+        const winThreshold = Math.max(goalThreshold, 1.2);
+        if (distToEnd < winThreshold) {
             this.onWin();
         }
     }
