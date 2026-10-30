@@ -170,6 +170,13 @@ export class MazeGame extends BaseMiniGame {
         this.camera = camera;
     }
 
+    private rawWallsNode: any = null;
+    private lastMeshScanTime: number = 0;
+
+    public getLoadedCollidersCount(): number {
+        return this.customWallMeshes.length;
+    }
+
     /**
      * Bind custom visual scene nodes created in Mattercraft by the 3D artist / level designer.
      * Automatically extracts wall collision bounding boxes from all child meshes in the 'Colliders' or 'Walls' group,
@@ -183,69 +190,13 @@ export class MazeGame extends BaseMiniGame {
         endPad?: THREE.Object3D | any;
         goalItem?: THREE.Object3D | any;
     }): void {
-        const wallsObj = nodes.collidersGroup?.element || nodes.collidersGroup || nodes.wallsGroup?.element || nodes.wallsGroup;
+        this.rawWallsNode = nodes.collidersGroup?.element || nodes.collidersGroup || nodes.wallsGroup?.element || nodes.wallsGroup;
         const startPadObj = nodes.startPad?.element || nodes.startPad;
         const endPadObj = nodes.endPad?.element || nodes.endPad;
         const goalObj = nodes.goalItem?.element || nodes.goalItem;
 
-        if (wallsObj) {
-            this.wallMeshes = [];
-            this.wallBoundingBoxes = [];
-            this.customWallMeshes = [];
-
-            wallsObj.updateMatrixWorld(true);
-            this.container.updateMatrixWorld(true);
-
-            // Traverse and collect wall meshes & colliders
-            wallsObj.traverse((child: any) => {
-                if (child.isMesh && child.geometry) {
-                    const name = (child.name || '').toLowerCase();
-
-                    // Check if this mesh or any parent is a floor or a pad
-                    let curr: THREE.Object3D | null = child;
-                    let isFloorOrPad = false;
-                    while (curr && curr !== wallsObj) {
-                        const n = (curr.name || '').toLowerCase();
-                        if (n.includes('floor') || n.includes('ground') || n.includes('pad')) {
-                            isFloorOrPad = true;
-                            break;
-                        }
-                        curr = curr.parent;
-                    }
-
-                    if (isFloorOrPad || name.includes('floor') || name.includes('ground') || name.includes('pad')) {
-                        console.log(`[MazeGame] Walkable floor / pad ignored from collisions: '${child.name}'`);
-                        return;
-                    }
-
-                    child.geometry.computeBoundingBox();
-                    const worldBox = new THREE.Box3().setFromObject(child);
-                    const size = new THREE.Vector3();
-                    worldBox.getSize(size);
-
-                    // Skip very flat planes (<= 0.35m height)
-                    if (size.y < 0.35 && (size.x > 0.8 || size.z > 0.8)) {
-                        console.log(`[MazeGame] Flat plane ignored from collisions: '${child.name}'`);
-                        return;
-                    }
-
-                    // Save mesh for raycasting
-                    this.customWallMeshes.push(child);
-
-                    // If it's an individual wall segment (< 4.0m), store bounding box
-                    if (size.x < 4.0 || size.z < 4.0) {
-                        const minLocal = this.container.worldToLocal(worldBox.min.clone());
-                        const maxLocal = this.container.worldToLocal(worldBox.max.clone());
-                        const localBox = new THREE.Box3();
-                        localBox.setFromPoints([minLocal, maxLocal]);
-                        localBox.min.y = -0.5;
-                        localBox.max.y = 2.5;
-                        this.wallBoundingBoxes.push(localBox);
-                    }
-                }
-            });
-
-            console.log(`[MazeGame] Loaded ${this.customWallMeshes.length} wall mesh(es) and ${this.wallBoundingBoxes.length} box colliders from artist's maze!`);
+        if (this.rawWallsNode) {
+            this.scanWallMeshes();
         }
 
         if (startPadObj) {
@@ -269,6 +220,80 @@ export class MazeGame extends BaseMiniGame {
             const goalMesh = goalObj.element || goalObj;
             this.goalItemMesh = goalMesh;
             console.log('[MazeGame] Bound custom collectible item from artist!');
+        }
+    }
+
+    /**
+     * Scans the 3D scene node for wall meshes.
+     * Runs periodically if the GLTF models take a few frames to download / parse asynchronously!
+     */
+    public scanWallMeshes(): void {
+        if (!this.rawWallsNode) return;
+
+        const wallsObj = this.rawWallsNode;
+        wallsObj.updateMatrixWorld(true);
+        this.container.updateMatrixWorld(true);
+
+        const foundMeshes: THREE.Mesh[] = [];
+        this.wallBoundingBoxes = [];
+
+        wallsObj.traverse((child: any) => {
+            if (child.isMesh && child.geometry) {
+                const name = (child.name || '').toLowerCase();
+
+                // Check if this mesh or any parent is a floor or a pad
+                let curr: THREE.Object3D | null = child;
+                let isFloorOrPad = false;
+                while (curr && curr !== wallsObj) {
+                    const n = (curr.name || '').toLowerCase();
+                    if (n.includes('floor') || n.includes('ground') || n.includes('pad')) {
+                        isFloorOrPad = true;
+                        break;
+                    }
+                    curr = curr.parent;
+                }
+
+                if (isFloorOrPad || name.includes('floor') || name.includes('ground') || name.includes('pad')) {
+                    return;
+                }
+
+                child.geometry.computeBoundingBox();
+                const worldBox = new THREE.Box3().setFromObject(child);
+                const size = new THREE.Vector3();
+                worldBox.getSize(size);
+
+                // Skip very flat planes (<= 0.35m height)
+                if (size.y < 0.35 && (size.x > 0.8 || size.z > 0.8)) {
+                    return;
+                }
+
+                // Ensure double-sided materials so raycasts hit both front and back faces!
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((m: any) => { m.side = THREE.DoubleSide; });
+                    } else {
+                        child.material.side = THREE.DoubleSide;
+                    }
+                }
+
+                foundMeshes.push(child);
+
+                // If it's an individual wall segment (< 4.0m), store bounding box
+                if (size.x < 4.0 || size.z < 4.0) {
+                    const minLocal = this.container.worldToLocal(worldBox.min.clone());
+                    const maxLocal = this.container.worldToLocal(worldBox.max.clone());
+                    const localBox = new THREE.Box3();
+                    localBox.setFromPoints([minLocal, maxLocal]);
+                    localBox.min.y = -0.5;
+                    localBox.max.y = 2.5;
+                    this.wallBoundingBoxes.push(localBox);
+                }
+            }
+        });
+
+        if (foundMeshes.length > 0) {
+            this.customWallMeshes = foundMeshes;
+            console.log(`[MazeGame] Successfully detected ${this.customWallMeshes.length} wall mesh(es) for collisions!`);
         }
     }
 
@@ -464,6 +489,15 @@ export class MazeGame extends BaseMiniGame {
     }
 
     protected onUpdate(deltaTime: number): void {
+        // If GLTF models load asynchronously, retry scanning every 0.5s until meshes appear
+        if (this.customWallMeshes.length === 0 && this.rawWallsNode) {
+            this.lastMeshScanTime += deltaTime;
+            if (this.lastMeshScanTime >= 0.5) {
+                this.lastMeshScanTime = 0;
+                this.scanWallMeshes();
+            }
+        }
+
         // Animate floating special item
         if (this.goalItemMesh) {
             this.goalItemMesh.rotation.y += deltaTime * 1.5;
@@ -515,7 +549,7 @@ export class MazeGame extends BaseMiniGame {
             this.playerMesh.getWorldPosition(worldCenter);
             worldCenter.y += 0.8; // Waist height
 
-            const checkDistance = this.playerSphere.radius + 0.05; // 0.35m body radius
+            const checkDistance = 0.55; // 0.55m body proximity threshold
 
             for (const dir of this.rayDirections) {
                 this.raycaster.set(worldCenter, dir);

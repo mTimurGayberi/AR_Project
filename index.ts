@@ -16,6 +16,8 @@ const mazeGame = new MazeGame({
 gameManager.registerGame(mazeGame);
 gameManager.setActiveGame(mazeGame.id);
 
+let updateCounterUI: () => void = () => {};
+
 // 2. Setup HUD Notification Display
 function createHUD() {
     const hudContainer = document.createElement('div');
@@ -24,7 +26,7 @@ function createHUD() {
     hudContainer.style.top = '48px'; // Avoids iPhone notch / Dynamic Island
     hudContainer.style.left = '50%';
     hudContainer.style.transform = 'translateX(-50%)';
-    hudContainer.style.zIndex = '1000';
+    hudContainer.style.zIndex = '999999'; // High z-index ensures visibility on mobile WebAR!
     hudContainer.style.display = 'flex';
     hudContainer.style.flexDirection = 'column';
     hudContainer.style.alignItems = 'center';
@@ -43,9 +45,10 @@ function createHUD() {
     counterPill.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
     (counterPill.style as any).backdropFilter = 'blur(6px)';
 
-    const updateCounterUI = () => {
+    updateCounterUI = () => {
         const prog = gameManager.getProgression();
-        counterPill.innerText = `🔮 Special Items: ${prog.collected} / ${prog.total}`;
+        const walls = mazeGame.getLoadedCollidersCount();
+        counterPill.innerText = `🔮 Special Items: ${prog.collected} / ${prog.total} | 🛡️ Walls: ${walls}`;
     };
     updateCounterUI();
     hudContainer.appendChild(counterPill);
@@ -167,16 +170,26 @@ for (let i = 2; i <= 10; i++) {
 const sceneNodes = (instance?.nodes as any) || {};
 
 // Forgiving node lookup: supports 'mazeWalls.glb', 'Walls', 'Colliders', 'Colliders/Walls', 'Game_1_Maze'
-const wallsGroup = sceneNodes['mazeWalls.glb']
-                || sceneNodes['mazeWalls_glb']
-                || sceneNodes.mazeWalls
-                || sceneNodes['mazeWalls']
-                || sceneNodes['Colliders/Walls']
-                || sceneNodes.Colliders 
-                || sceneNodes.Walls 
-                || sceneNodes['Colliders_Walls']
-                || sceneNodes.Maze
-                || sceneNodes.Game_1_Maze;
+let wallsGroup = sceneNodes['mazeWalls.glb']
+              || sceneNodes['mazeWalls_glb']
+              || sceneNodes.mazeWalls
+              || sceneNodes['mazeWalls']
+              || sceneNodes['Colliders/Walls']
+              || sceneNodes.Colliders 
+              || sceneNodes.Walls 
+              || sceneNodes['Colliders_Walls']
+              || sceneNodes.Maze
+              || sceneNodes.Game_1_Maze;
+
+// Deep search Three.js scene if not found in root nodes
+if (!wallsGroup && threeScene) {
+    threeScene.traverse((obj: any) => {
+        const n = (obj.name || '').toLowerCase();
+        if (n.includes('mazewalls') || (n.includes('walls') && !n.includes('floor'))) {
+            wallsGroup = obj;
+        }
+    });
+}
 
 const startPadNode = sceneNodes.StartPad 
                   || sceneNodes['Start Pad']
@@ -212,11 +225,19 @@ mazeGame.onNotification?.('Walk through the entrance into the maze towards the g
 
 // 6. Game loop hook
 let lastTime = performance.now();
+let hudTimer = 0;
 function loop(now: number) {
     const delta = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
     gameManager.updateActiveGame(delta);
+
+    hudTimer += delta;
+    if (hudTimer >= 0.5) {
+        hudTimer = 0;
+        updateCounterUI();
+    }
+
     requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
