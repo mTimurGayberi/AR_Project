@@ -166,23 +166,31 @@ for (let i = 2; i <= 10; i++) {
 // Automatically hook up custom visual scene nodes if created by 3D artist in Mattercraft!
 const sceneNodes = (instance?.nodes as any) || {};
 
-// Forgiving node lookup: supports 'Walls', 'Colliders', 'Colliders/Walls', with or without spaces
-const wallsGroup = sceneNodes.Walls 
+// Forgiving node lookup: supports 'Walls', 'Colliders', 'Colliders/Walls', 'Game_1_Maze', with or without spaces
+const wallsGroup = sceneNodes['Colliders/Walls']
                 || sceneNodes.Colliders 
-                || sceneNodes['Colliders/Walls']
-                || sceneNodes['Colliders_Walls'];
+                || sceneNodes.Walls 
+                || sceneNodes['Colliders_Walls']
+                || sceneNodes.Maze
+                || sceneNodes.Game_1_Maze;
 
 const startPadNode = sceneNodes.StartPad 
                   || sceneNodes['Start Pad']
-                  || sceneNodes.Start_Pad;
+                  || sceneNodes.Start_Pad
+                  || sceneNodes.Start;
 
 const endPadNode = sceneNodes.EndPad 
                 || sceneNodes['End Pad']
-                || sceneNodes.End_Pad;
+                || sceneNodes.End_Pad
+                || sceneNodes.End
+                || sceneNodes.Finish;
 
 const goalNode = sceneNodes.GoalItem 
               || sceneNodes.WindGem 
               || sceneNodes['Goal Item'] 
+              || sceneNodes.Collectible 
+              || sceneNodes['Collectible']
+              || sceneNodes.Item
               || sceneNodes.Goal;
 
 if (wallsGroup || startPadNode || endPadNode) {

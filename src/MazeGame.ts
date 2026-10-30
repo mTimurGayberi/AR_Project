@@ -178,37 +178,31 @@ export class MazeGame extends BaseMiniGame {
         const goalObj = nodes.goalItem?.element || nodes.goalItem;
 
         if (wallsObj) {
-            const customMeshes: THREE.Mesh[] = [];
+            this.wallMeshes = [];
+            this.wallBoundingBoxes = [];
+
+            wallsObj.updateMatrixWorld(true);
+            this.container.updateMatrixWorld(true);
+
+            // Compute local bounding boxes for every vertical wall mesh (ignoring flat floors)
             wallsObj.traverse((child: any) => {
                 if (child.isMesh && child.geometry) {
-                    customMeshes.push(child);
-                }
-            });
-
-            if (customMeshes.length > 0) {
-                // Remove procedural fallback walls because custom scene walls are present!
-                for (const wall of this.wallMeshes) {
-                    this.container.remove(wall);
-                    if (wall.geometry) wall.geometry.dispose();
-                }
-                this.wallMeshes = [];
-                this.wallBoundingBoxes = [];
-
-                wallsObj.updateMatrixWorld(true);
-                this.container.updateMatrixWorld(true);
-
-                // Auto-detect overall dimensions directly from the scene objects (Zero hardcoded sizes!)
-                const totalBounds = new THREE.Box3().setFromObject(wallsObj);
-                const totalSize = new THREE.Vector3();
-                totalBounds.getSize(totalSize);
-                if (totalSize.x > 0.5) this.roomWidth = totalSize.x;
-                if (totalSize.z > 0.5) this.roomDepth = totalSize.z;
-                if (totalSize.y > 0.5) this.wallHeight = totalSize.y;
-
-                // Compute local bounding boxes for every mesh inside the colliders/walls group
-                for (const child of customMeshes) {
                     child.geometry.computeBoundingBox();
                     const worldBox = new THREE.Box3().setFromObject(child);
+                    const size = new THREE.Vector3();
+                    worldBox.getSize(size);
+
+                    // Filter out flat floors and ground planes so player feet don't trigger wall collisions!
+                    const name = (child.name || '').toLowerCase();
+                    const isFloor = name.includes('floor') 
+                                 || name.includes('ground') 
+                                 || name.includes('plane')
+                                 || (size.y < 0.35 && (size.x > 0.8 || size.z > 0.8));
+
+                    if (isFloor) {
+                        console.log(`[MazeGame] Detected walkable floor: '${child.name}'. Excluded from wall colliders.`);
+                        return;
+                    }
 
                     // Convert world coordinates to local container coordinates
                     const minLocal = this.container.worldToLocal(worldBox.min.clone());
@@ -216,17 +210,15 @@ export class MazeGame extends BaseMiniGame {
                     const localBox = new THREE.Box3();
                     localBox.setFromPoints([minLocal, maxLocal]);
 
-                    // Ensure vertical range covers the full wall height for collision
+                    // Ensure vertical range covers human height for collision
                     localBox.min.y = -0.5;
-                    localBox.max.y = this.wallHeight + 0.5;
+                    localBox.max.y = 2.5;
 
                     this.wallBoundingBoxes.push(localBox);
                 }
+            });
 
-                console.log(`[MazeGame] Auto-configured from scene: ${this.wallBoundingBoxes.length} colliders! Size: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m (Height: ${this.wallHeight.toFixed(1)}m)`);
-            } else {
-                console.log('[MazeGame] Colliders group is currently empty. Retaining procedural fallback maze until walls are placed inside.');
-            }
+            console.log(`[MazeGame] Loaded ${this.wallBoundingBoxes.length} wall colliders from artist's 3D maze!`);
         }
 
         if (startPadObj) {
@@ -234,9 +226,6 @@ export class MazeGame extends BaseMiniGame {
             startPadObj.getWorldPosition(worldPos);
             this.container.worldToLocal(worldPos);
             this.startPoint.set(worldPos.x, 0, worldPos.z);
-            if (this.startPad) {
-                this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
-            }
             this.resetPlayerPosition();
             console.log(`[MazeGame] Start pad bound to (${this.startPoint.x.toFixed(2)}, ${this.startPoint.z.toFixed(2)})`);
         }
@@ -246,24 +235,20 @@ export class MazeGame extends BaseMiniGame {
             endPadObj.getWorldPosition(worldPos);
             this.container.worldToLocal(worldPos);
             this.endPoint.set(worldPos.x, 0, worldPos.z);
-            if (this.endPad) {
-                this.endPad.position.set(this.endPoint.x, 0.05, this.endPoint.z);
-            }
-            if (this.goalItemMesh) {
-                this.goalItemMesh.position.set(this.endPoint.x, 1.3, this.endPoint.z);
-            }
             console.log(`[MazeGame] End pad bound to (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})`);
         }
 
-        if (goalObj && goalObj.isMesh) {
-            this.goalItemMesh = goalObj;
+        if (goalObj) {
+            const goalMesh = goalObj.element || goalObj;
+            this.goalItemMesh = goalMesh;
+            console.log('[MazeGame] Bound custom collectible item from artist!');
         }
     }
 
     public init(parentContainer: THREE.Group | THREE.Scene | any): void {
         this.addLighting();
-        this.buildMaze();
-        this.createStartAndEndPads();
+        // NOTE: Procedural maze walls, floors, and octahedron are completely removed.
+        // All visuals now come 100% from your friend's 3D models in Mattercraft!
         this.createPlayer();
         this.setupInputListeners();
 
@@ -274,7 +259,7 @@ export class MazeGame extends BaseMiniGame {
             parentContainer.element.add(this.container);
         }
 
-        console.log(`[MazeGame] Initialized. Wall height: ${this.wallHeight}m.`);
+        console.log('[MazeGame] Initialized (Artist 3D Custom Mode). Ready for friend\'s models.');
     }
 
     private addLighting(): void {
