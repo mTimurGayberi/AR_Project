@@ -22,7 +22,9 @@ let updateCounterUI: () => void = () => {};
 function formatTime(totalSeconds: number): string {
     const mins = Math.floor(totalSeconds / 60);
     const secs = Math.floor(totalSeconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const mStr = mins < 10 ? '0' + mins : '' + mins;
+    const sStr = secs < 10 ? '0' + secs : '' + secs;
+    return `${mStr}:${sStr}`;
 }
 
 // 2. Setup HUD Notification Display & Bottom Action Bar
