@@ -521,6 +521,10 @@ export class MazeGame extends BaseMiniGame {
         this.notify('Ready at Start Pad! Navigate through the corridors.', 'info');
     }
 
+    public override notify(message: string, type: import('./BaseMiniGame').NotificationType = 'info'): void {
+        super.notify(message, type);
+    }
+
     /**
      * Restart current trial immediately (can be called manually from UI button or upon failure reset)
      */

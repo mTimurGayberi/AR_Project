@@ -203,7 +203,7 @@ function createHUD() {
             gameManager.setActiveGame(mazeGame.id);
             mazeGame.restartTrial();
             updateCounterUI();
-            mazeGame.notify('🧹 Quest reset! 0/10 items collected.', 'info');
+            mazeGame.onNotification?.('🧹 Quest reset! 0/10 items collected.', 'info');
         }
     };
 
