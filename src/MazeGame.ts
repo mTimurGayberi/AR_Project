@@ -186,6 +186,8 @@ export class MazeGame extends BaseMiniGame {
         return this.customWallMeshes.length;
     }
 
+    private isStartPadStyled: boolean = false;
+
     public setStartPadVisible(visible: boolean): void {
         const target = this.startPadObjRef || this.startPad;
         if (target) {
@@ -197,20 +199,40 @@ export class MazeGame extends BaseMiniGame {
     }
 
     public styleStartPad(obj: THREE.Object3D): void {
+        let styledCount = 0;
         obj.traverse((child: any) => {
             if (child.isMesh) {
-                child.material = new THREE.MeshStandardMaterial({
-                    color: 0x00ff88,
-                    emissive: 0x00bb55,
-                    emissiveIntensity: 0.5,
-                    transparent: true,
-                    opacity: 0.35, // Low opacity green area around flag
-                    depthWrite: false,
-                    roughness: 0.3,
-                    metalness: 0.1
-                });
+                const mat = child.material;
+                if (mat) {
+                    const mats = Array.isArray(mat) ? mat : [mat];
+                    mats.forEach((m: any) => {
+                        if (m.color) m.color.setHex(0x00ff88);
+                        if (m.emissive) {
+                            m.emissive.setHex(0x00bb55);
+                            m.emissiveIntensity = 0.6;
+                        }
+                        m.transparent = true;
+                        m.opacity = 0.35; // Low opacity green area around flag
+                        m.depthWrite = false;
+                        m.needsUpdate = true;
+                    });
+                } else {
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: 0x00ff88,
+                        emissive: 0x00bb55,
+                        emissiveIntensity: 0.6,
+                        transparent: true,
+                        opacity: 0.35,
+                        depthWrite: false
+                    });
+                }
+                styledCount++;
             }
         });
+        if (styledCount > 0) {
+            this.isStartPadStyled = true;
+            console.log(`[MazeGame] Styled StartPad with glowing green material (${styledCount} mesh(es))`);
+        }
     }
 
     private createStartPadMesh(): void {
@@ -664,6 +686,11 @@ export class MazeGame extends BaseMiniGame {
                 this.lastMeshScanTime = 0;
                 this.scanWallMeshes();
             }
+        }
+
+        // If start pad meshes loaded asynchronously, style them as soon as available
+        if (!this.isStartPadStyled && this.startPadObjRef) {
+            this.styleStartPad(this.startPadObjRef);
         }
 
         // Dynamically track custom artist pads if present
