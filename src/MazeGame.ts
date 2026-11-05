@@ -1,91 +1,77 @@
 import * as THREE from 'three';
 import { BaseMiniGame } from './BaseMiniGame';
-import type { RoomBounds } from './RoomScanner';
+import { StartZone } from './core/StartZone';
+import { CollectibleItem } from './core/CollectibleItem';
 
 export interface MazeConfig {
     wallGracePeriod?: number;   // Duration in seconds (e.g. 2.0s) before penalty reset
     collisionDistance?: number; // Proximity in meters to trigger warning (default 0.25m, lower = less sensitive)
-    wallHeight?: number;        // Fixed height of walls in meters (always human-height, e.g. 1.8m)
-    cellSize?: number;          // Optional corridor cell size
+    wallHeight?: number;        // Fixed height of walls in meters (e.g. 2.2m)
     moveSpeed?: number;         // Desktop dev simulation speed
-    roomWidth?: number;         // Fixed room width in meters (e.g. 4.0m - 6.0m)
-    roomDepth?: number;         // Fixed room depth in meters (e.g. 4.0m - 6.0m)
 }
 
 /**
  * MazeGame
  * 
  * Game #1 in the 10 mini-game quest.
- * Features:
- * - 1:1 Fixed Room-Scale AR: Fits the physical campus room at fixed dimensions (default 5.0m x 5.0m).
- * - Vertical wall height (Y) remains strictly fixed at 1.8m so walls never become short toy walls.
- * - Player position is tracked via the phone's 6-DOF AR camera as they physically walk inside.
- * - Open entrance doorway at (0, 1) allows player to physically walk in from outside.
- * - Wall collision grace period (2-second warning before penalty).
- * - Physical Return-to-Start mechanic on wall failure.
+ * Modularized Architecture:
+ * - Uses StartZone for the flag & translucent green activation pad.
+ * - Uses CollectibleItem for the golden spinning gem.
+ * - Manages 360-degree wall raycast proximity collisions.
+ * - Continuous 6-DOF phone walking camera tracking.
  */
 export class MazeGame extends BaseMiniGame {
-    public wallGracePeriod: number = 2.0;
-    public collisionDistance: number = 0.25; // 0.25m (tune this in index.ts: lower = less sensitive, higher = more sensitive)
-    public wallHeight: number = 2.2; // 2.2m tall bamboo walls for the high ceiling campus room!
-    public moveSpeed: number = 3.0;
+    // #region CONFIGURATION & WALL COLLISION CONTROLS
+    // =========================================================================
+    // Easily tweak any of these numbers to change collision sensitivity!
+    // =========================================================================
+    public wallGracePeriod: number = 2.0;    // Grace period in seconds before penalty reset
+    public collisionDistance: number = 0.25;  // Proximity threshold in meters (0.25m = ~10 inches)
+    public wallHeight: number = 2.2;         // Human height in meters for walls
+    public moveSpeed: number = 3.0;          // Desktop keyboard movement speed
+    // #endregion
 
-    // Room dimensions (X = width: 7.5m, Z = depth: 22.0m)
-    public roomWidth: number = 7.5;
-    public roomDepth: number = 22.0;
-    public cellSizeX: number = 1.5;
-    public cellSizeZ: number = 2.2;
+    // #region MODULAR COMPONENTS
+    public startZone: StartZone;
+    public collectible: CollectibleItem;
+    // #endregion
 
-    // Camera reference for 1:1 physical AR walking
+    // #region 3D OBJECTS & AR TRACKING
     private camera: THREE.Camera | null = null;
     private tempWorldPos: THREE.Vector3 = new THREE.Vector3();
     private tempLocalPos: THREE.Vector3 = new THREE.Vector3();
 
-    // Positions in local container coordinates
-    private startPoint: THREE.Vector3 = new THREE.Vector3();
-    private endPoint: THREE.Vector3 = new THREE.Vector3();
-
-    // 3D Visual Objects
     private playerMesh!: THREE.Mesh;
     private playerMaterial!: THREE.MeshStandardMaterial;
     private playerSphere: THREE.Sphere = new THREE.Sphere(new THREE.Vector3(), 0.35); // 0.35m body radius
-    private goalItemMesh!: THREE.Mesh;
-    private wallBoundingBoxes: THREE.Box3[] = [];
-    private customWallMeshes: THREE.Mesh[] = [];
-    private wallMeshes: THREE.Mesh[] = [];
-    private floorMesh!: THREE.Mesh;
-    private startPad!: THREE.Mesh;
-    private endPad!: THREE.Mesh;
 
-    // Raycaster for high-precision wall polygon collisions
+    private customWallMeshes: THREE.Mesh[] = [];
+    private rawWallsNode: any = null;
+    private lastMeshScanTime: number = 0;
+
+    // 12 radial directions around player for 360-degree wall raycasting
     private raycaster: THREE.Raycaster = new THREE.Raycaster();
     private rayDirections: THREE.Vector3[] = [];
+    // #endregion
 
-    // Collision & Grace Period State
+    // #region GAME STATE
     private isCollidingWithWall: boolean = false;
     private wallCollisionTimer: number = 0;
     private isWaitingForPhysicalReturn: boolean = false;
     private isWaitingToStart: boolean = true;
     private isTrialWon: boolean = false;
+
     private returnNotifyTimer: number = 0;
     private graceNotifyTimer: number = 0;
-    private normalPlayerColor: number = 0x00d2ff; // Bright cyan
-    private warningPlayerColor: number = 0xff2222; // Glowing red warning
 
-    // Input state for desktop keyboard testing
+    private normalPlayerColor: number = 0x00d2ff;  // Vibrant cyan
+    private warningPlayerColor: number = 0xff2222; // Glowing red warning
+    // #endregion
+
+    // #region DESKTOP INPUT STATE
     private inputVelocity: THREE.Vector2 = new THREE.Vector2();
     private isUsingKeyboard: boolean = false;
-
-    // 5x5 Walkable Maze Grid (Optimal for room-scale walking)
-    // (0, 1) Open entrance doorway from room into maze
-    // S at (1, 1), E at (3, 3)
-    private mazeGrid: number[][] = [
-        [1, 0, 1, 1, 1], // (0, 1) Entrance doorway
-        [1, 0, 0, 0, 1], // (1, 1) Start corridor & pad
-        [1, 0, 1, 0, 1], // Center barrier
-        [1, 0, 0, 0, 1], // (3, 3) End corridor & reward gem
-        [1, 1, 1, 1, 1],
-    ];
+    // #endregion
 
     constructor(config?: MazeConfig) {
         super('game_01_maze', 'Sensei Maze Trial', 'item_01_wind_gem');
@@ -94,358 +80,47 @@ export class MazeGame extends BaseMiniGame {
         if (config?.collisionDistance !== undefined) this.collisionDistance = config.collisionDistance;
         if (config?.wallHeight !== undefined) this.wallHeight = config.wallHeight;
         if (config?.moveSpeed !== undefined) this.moveSpeed = config.moveSpeed;
-        if (config?.roomWidth !== undefined) this.roomWidth = config.roomWidth;
-        if (config?.roomDepth !== undefined) this.roomDepth = config.roomDepth;
-        if (config?.cellSize !== undefined) {
-            const cols = this.mazeGrid[0].length;
-            const rows = this.mazeGrid.length;
-            this.roomWidth = config.cellSize * cols;
-            this.roomDepth = config.cellSize * rows;
-        }
 
-        // Initialize 12 horizontal radial directions around player for 360-degree wall proximity detection
+        // Initialize modular components
+        this.startZone = new StartZone({
+            triggerRadius: 1.4,
+            padRadius: 1.3,
+            padColor: 0x00ff88,
+            padOpacity: 0.35
+        });
+
+        this.collectible = new CollectibleItem('item_01_wind_gem', 'Wind Gem', {
+            pickupRadius: 1.3,
+            spinSpeedY: 1.8,
+            spinSpeedX: 0.5,
+            enableFloating: true,
+            floatAmplitude: 0.08
+        });
+
+        // Initialize 12 radial directions for 360-degree horizontal raycasting
         for (let i = 0; i < 12; i++) {
             const angle = (i * Math.PI) / 6;
             this.rayDirections.push(new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)).normalize());
         }
-
-        this.calculateCellSizes();
     }
 
-    private calculateCellSizes(): void {
-        const rows = this.mazeGrid.length;
-        const cols = this.mazeGrid[0].length;
-        this.cellSizeX = this.roomWidth / cols;
-        this.cellSizeZ = this.roomDepth / rows;
-    }
-
-    /**
-     * Set fixed room dimensions directly (in meters).
-     * Rebuilds the maze grid to match the room while keeping wallHeight fixed at 1.8m.
-     */
-    public setRoomDimensions(width: number, depth: number): void {
-        this.roomWidth = Math.max(width, 2.0);
-        this.roomDepth = Math.max(depth, 2.0);
-        this.rebuildMaze();
-        this.reset();
-        this.notify(`Maze set to fixed room: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m.`, 'info');
-    }
-
-    /**
-     * Apply calibrated room boundaries from RoomScanner.
-     * Scales only X and Z to match room dimensions; wall height (Y) remains strictly fixed at 1.8m!
-     */
-    public applyRoomBounds(bounds: RoomBounds): void {
-        this.roomWidth = bounds.width;
-        this.roomDepth = bounds.depth;
-
-        this.container.position.copy(bounds.center);
-        this.container.rotation.y = bounds.rotationY;
-
-        console.log(`[MazeGame] Room bounds applied: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m. Rotation: ${bounds.rotationY.toFixed(2)} rad. Wall height: ${this.wallHeight}m.`);
-
-        this.rebuildMaze();
-        this.reset();
-        this.notify(`Maze fitted to room: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m! (Walls: ${this.wallHeight}m tall)`, 'success');
-    }
-
-    /**
-     * Calibrate the maze to fit the player's scanned room (2-corner fallback).
-     * Scales only X and Z to match room dimensions; wall height (Y) remains fixed at 1.8m!
-     */
-    public calibrateRoom(corner1: THREE.Vector3, corner2: THREE.Vector3): void {
-        const measuredWidth = Math.abs(corner2.x - corner1.x);
-        const measuredDepth = Math.abs(corner2.z - corner1.z);
-
-        this.roomWidth = Math.max(measuredWidth, 2.5);
-        this.roomDepth = Math.max(measuredDepth, 2.5);
-
-        const centerX = (corner1.x + corner2.x) / 2;
-        const centerZ = (corner1.z + corner2.z) / 2;
-        const floorY = Math.min(corner1.y, corner2.y);
-
-        this.container.position.set(centerX, floorY, centerZ);
-
-        console.log(`[MazeGame] Room calibrated: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m. Wall height strictly fixed at ${this.wallHeight}m.`);
-
-        this.rebuildMaze();
-        this.reset();
-        this.notify(`Room mapped: ${this.roomWidth.toFixed(1)}m × ${this.roomDepth.toFixed(1)}m! Maze generated.`, 'success');
-    }
-
+    // #region INITIALIZATION & SCENE BINDING
     public setCamera(camera: THREE.Camera): void {
         this.camera = camera;
     }
 
-    private rawWallsNode: any = null;
-    private startPadObjRef: any = null;
-    private flagObjRef: any = null;
-    private endPadObjRef: any = null;
-    private lastMeshScanTime: number = 0;
-
-    public getLoadedCollidersCount(): number {
-        return this.customWallMeshes.length;
-    }
-
-    private isStartPadStyled: boolean = false;
-
-    public setStartPadVisible(visible: boolean): void {
-        const target = this.startPadObjRef || this.startPad;
-        if (target) {
-            target.visible = visible;
-            target.traverse?.((child: any) => {
-                child.visible = visible;
-            });
-        }
-    }
-
-    public styleStartPad(obj: THREE.Object3D): void {
-        let styledCount = 0;
-        obj.traverse((child: any) => {
-            if (child.isMesh) {
-                const mat = child.material;
-                if (mat) {
-                    const mats = Array.isArray(mat) ? mat : [mat];
-                    mats.forEach((m: any) => {
-                        if (m.color) m.color.setHex(0x00ff88);
-                        if (m.emissive) {
-                            m.emissive.setHex(0x00bb55);
-                            m.emissiveIntensity = 0.6;
-                        }
-                        m.transparent = true;
-                        m.opacity = 0.35; // Low opacity green area around flag
-                        m.depthWrite = false;
-                        m.needsUpdate = true;
-                    });
-                } else {
-                    child.material = new THREE.MeshStandardMaterial({
-                        color: 0x00ff88,
-                        emissive: 0x00bb55,
-                        emissiveIntensity: 0.6,
-                        transparent: true,
-                        opacity: 0.35,
-                        depthWrite: false
-                    });
-                }
-                styledCount++;
-            }
-        });
-        if (styledCount > 0) {
-            this.isStartPadStyled = true;
-            console.log(`[MazeGame] Styled StartPad with glowing green material (${styledCount} mesh(es))`);
-        }
-    }
-
-    private createStartPadMesh(): void {
-        const padRadius = 1.3;
-        const padGeo = new THREE.CylinderGeometry(padRadius, padRadius, 0.04, 32);
-        const padMat = new THREE.MeshStandardMaterial({
-            color: 0x00ff88,
-            emissive: 0x00bb55,
-            emissiveIntensity: 0.5,
-            transparent: true,
-            opacity: 0.35,
-            depthWrite: false
-        });
-        this.startPad = new THREE.Mesh(padGeo, padMat);
-        this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
-        this.container.add(this.startPad);
-    }
-
-    public updateStartPoint(): void {
-        const targetObj = this.flagObjRef || this.startPadObjRef;
-        if (!targetObj) return;
-        targetObj.updateMatrixWorld(true);
-        this.container.updateMatrixWorld(true);
-        const worldPos = new THREE.Vector3();
-        targetObj.getWorldPosition(worldPos);
-        this.container.worldToLocal(worldPos);
-        this.startPoint.set(worldPos.x, 0, worldPos.z);
-    }
-
-    public updateEndPoint(): void {
-        // Always prioritize the collectible gem as the win target
-        const targetObj = this.goalItemMesh || this.endPadObjRef;
-        if (!targetObj) return;
-        targetObj.updateMatrixWorld(true);
-        this.container.updateMatrixWorld(true);
-        const worldPos = new THREE.Vector3();
-        targetObj.getWorldPosition(worldPos);
-        this.container.worldToLocal(worldPos);
-        this.endPoint.set(worldPos.x, 0, worldPos.z);
-    }
-
-    public getStartPoint(): THREE.Vector3 {
-        this.updateStartPoint();
-        return this.startPoint;
-    }
-
-    public getEndPoint(): THREE.Vector3 {
-        this.updateEndPoint();
-        return this.endPoint;
-    }
-
-    public getIsWaitingForPhysicalReturn(): boolean {
-        return this.isWaitingForPhysicalReturn;
-    }
-
-    public getDistanceToStart(): number {
-        this.updateStartPoint();
-        const dx = this.playerSphere.center.x - this.startPoint.x;
-        const dz = this.playerSphere.center.z - this.startPoint.z;
-        return Math.sqrt(dx * dx + dz * dz);
-    }
-
-    /**
-     * Bind custom visual scene nodes created in Mattercraft by the 3D artist / level designer.
-     * Automatically extracts wall collision bounding boxes from all child meshes in the 'Colliders' or 'Walls' group,
-     * auto-detects the overall room dimensions (no hardcoded sizes needed!),
-     * and sets custom start/end pad locations.
-     */
-    public bindCustomSceneNodes(nodes: {
-        collidersGroup?: THREE.Group | THREE.Object3D | any;
-        wallsGroup?: THREE.Group | THREE.Object3D | any;
-        startPad?: THREE.Object3D | any;
-        flag?: THREE.Object3D | any;
-        endPad?: THREE.Object3D | any;
-        goalItem?: THREE.Object3D | any;
-    }): void {
-        this.rawWallsNode = nodes.collidersGroup?.element || nodes.collidersGroup || nodes.wallsGroup?.element || nodes.wallsGroup;
-        const startPadObj = nodes.startPad?.element || nodes.startPad;
-        const flagObj = nodes.flag?.element || nodes.flag;
-        const endPadObj = nodes.endPad?.element || nodes.endPad;
-        const goalObj = nodes.goalItem?.element || nodes.goalItem;
-
-        if (this.rawWallsNode) {
-            this.scanWallMeshes();
-        }
-
-        if (flagObj) {
-            this.flagObjRef = flagObj;
-            flagObj.updateMatrixWorld(true);
-            const worldPos = new THREE.Vector3();
-            flagObj.getWorldPosition(worldPos);
-            this.container.worldToLocal(worldPos);
-            this.startPoint.set(worldPos.x, 0, worldPos.z);
-            console.log(`[MazeGame] Start point bound to flag.glb at (${this.startPoint.x.toFixed(2)}, ${this.startPoint.z.toFixed(2)})`);
-        }
-
-        if (startPadObj) {
-            this.startPadObjRef = startPadObj;
-            this.styleStartPad(startPadObj);
-
-            // If flag exists, center the green start pad around the flag
-            if (this.flagObjRef) {
-                startPadObj.position.set(this.startPoint.x, 0.02, this.startPoint.z);
-            } else {
-                this.updateStartPoint();
-            }
-
-            console.log(`[MazeGame] Start pad bound to (${this.startPoint.x.toFixed(2)}, ${this.startPoint.z.toFixed(2)})`);
-        } else if (!this.startPad) {
-            this.createStartPadMesh();
-        }
-
-        this.setStartPadVisible(true);
-        this.resetPlayerPosition();
-
-        if (endPadObj) {
-            this.endPadObjRef = endPadObj;
-            this.updateEndPoint();
-            console.log(`[MazeGame] End pad bound to (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})`);
-        }
-
-        if (goalObj) {
-            const goalMesh = goalObj.element || goalObj;
-            this.goalItemMesh = goalMesh;
-            this.updateEndPoint();
-            console.log(`[MazeGame] Bound collectible gem as win target at (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})!`);
-        }
-    }
-
-    /**
-     * Scans the 3D scene node for wall meshes.
-     * Runs periodically if the GLTF models take a few frames to download / parse asynchronously!
-     */
-    public scanWallMeshes(): void {
-        if (!this.rawWallsNode) return;
-
-        const wallsObj = this.rawWallsNode;
-        wallsObj.updateMatrixWorld(true);
-        this.container.updateMatrixWorld(true);
-
-        const foundMeshes: THREE.Mesh[] = [];
-        this.wallBoundingBoxes = [];
-
-        wallsObj.traverse((child: any) => {
-            if (child.isMesh && child.geometry) {
-                const name = (child.name || '').toLowerCase();
-
-                // Check if this mesh or any parent is a floor, pad, flag, or collectible
-                let curr: THREE.Object3D | null = child;
-                let isNonWall = false;
-                while (curr && curr !== wallsObj) {
-                    const n = (curr.name || '').toLowerCase();
-                    if (n.includes('floor') || n.includes('ground') || n.includes('pad') || 
-                        n.includes('flag') || n.includes('start') || n.includes('item') || 
-                        n.includes('gem') || n.includes('collectible') || n.includes('icosphere') || n.includes('ico')) {
-                        isNonWall = true;
-                        break;
-                    }
-                    curr = curr.parent;
-                }
-
-                if (isNonWall || name.includes('floor') || name.includes('ground') || name.includes('pad') ||
-                    name.includes('flag') || name.includes('start') || name.includes('item') ||
-                    name.includes('gem') || name.includes('collectible') || name.includes('icosphere') || name.includes('ico')) {
-                    return;
-                }
-
-                child.geometry.computeBoundingBox();
-                const worldBox = new THREE.Box3().setFromObject(child);
-                const size = new THREE.Vector3();
-                worldBox.getSize(size);
-
-                // Skip very flat planes (<= 0.35m height)
-                if (size.y < 0.35 && (size.x > 0.8 || size.z > 0.8)) {
-                    return;
-                }
-
-                // Ensure double-sided materials so raycasts hit both front and back faces!
-                if (child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((m: any) => { m.side = THREE.DoubleSide; });
-                    } else {
-                        child.material.side = THREE.DoubleSide;
-                    }
-                }
-
-                // Add wall mesh for precise 360-degree polygon raycasting
-                foundMeshes.push(child);
-            }
-        });
-
-        if (foundMeshes.length > 0) {
-            this.customWallMeshes = foundMeshes;
-            console.log(`[MazeGame] Successfully detected ${this.customWallMeshes.length} wall mesh(es) for collisions!`);
-        }
-    }
-
     public init(parentContainer: THREE.Group | THREE.Scene | any): void {
         this.addLighting();
-        // NOTE: Procedural maze walls, floors, and octahedron are completely removed.
-        // All visuals now come 100% from your friend's 3D models in Mattercraft!
-        this.createPlayer();
+        this.createPlayerAvatar();
         this.setupInputListeners();
 
-        // Attach to Three.js Scene or parent container
         if (parentContainer && typeof parentContainer.add === 'function') {
             parentContainer.add(this.container);
         } else if (parentContainer?.element && typeof parentContainer.element.add === 'function') {
             parentContainer.element.add(this.container);
         }
 
-        console.log('[MazeGame] Initialized (Artist 3D Custom Mode). Ready for friend\'s models.');
+        console.log('[MazeGame] Initialized (Modular Architecture).');
     }
 
     private addLighting(): void {
@@ -461,163 +136,118 @@ export class MazeGame extends BaseMiniGame {
         this.container.add(fillLight);
     }
 
-    private rebuildMaze(): void {
-        // Remove existing walls
-        for (const wall of this.wallMeshes) {
-            this.container.remove(wall);
-            if (wall.geometry) wall.geometry.dispose();
-        }
-        this.wallMeshes = [];
-        this.wallBoundingBoxes = [];
-
-        if (this.floorMesh) {
-            this.container.remove(this.floorMesh);
-            if (this.floorMesh.geometry) this.floorMesh.geometry.dispose();
-        }
-
-        // Recompute cell sizes and build
-        this.calculateCellSizes();
-        this.buildMaze();
-
-        // Reposition pads
-        if (this.startPad) this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
-        if (this.endPad) this.endPad.position.set(this.endPoint.x, 0.05, this.endPoint.z);
-        if (this.goalItemMesh) this.goalItemMesh.position.set(this.endPoint.x, 1.3, this.endPoint.z);
-    }
-
-    private buildMaze(): void {
-        const rows = this.mazeGrid.length;
-        const cols = this.mazeGrid[0].length;
-        const offsetX = (cols * this.cellSizeX) / 2;
-        const offsetZ = (rows * this.cellSizeZ) / 2;
-
-        // Wall geometry: X and Z scale to the room; Y (height) is FIXED at this.wallHeight!
-        const wallGeometry = new THREE.BoxGeometry(this.cellSizeX, this.wallHeight, this.cellSizeZ);
-        
-        // Semi-transparent bamboo green walls (safe for indoor walking)
-        const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2e7d32, // Bamboo green
-            emissive: 0x1b5e20,
-            emissiveIntensity: 0.4,
-            roughness: 0.4,
-            metalness: 0.1,
-            transparent: true,
-            opacity: 0.8
-        });
-
-        // Floor guidelines
-        const floorGeo = new THREE.PlaneGeometry(cols * this.cellSizeX, rows * this.cellSizeZ);
-        const floorMat = new THREE.MeshStandardMaterial({
-            color: 0x0f172a,
-            transparent: true,
-            opacity: 0.4
-        });
-        this.floorMesh = new THREE.Mesh(floorGeo, floorMat);
-        this.floorMesh.rotation.x = -Math.PI / 2;
-        this.floorMesh.position.set(0, 0, 0);
-        this.container.add(this.floorMesh);
-
-        // Build walls and bounding boxes
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const posX = c * this.cellSizeX - offsetX + this.cellSizeX / 2;
-                const posZ = r * this.cellSizeZ - offsetZ + this.cellSizeZ / 2;
-
-                if (this.mazeGrid[r][c] === 1) {
-                    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-                    wall.position.set(posX, this.wallHeight / 2, posZ);
-                    this.container.add(wall);
-                    this.wallMeshes.push(wall);
-
-                    // Add bounding box for collision detection with player's body
-                    const box = new THREE.Box3();
-                    box.setFromCenterAndSize(
-                        wall.position,
-                        new THREE.Vector3(this.cellSizeX, this.wallHeight * 2, this.cellSizeZ)
-                    );
-                    this.wallBoundingBoxes.push(box);
-                } else if (r === 1 && c === 1) {
-                    this.startPoint.set(posX, 0, posZ);
-                } else if (r === 3 && c === 3) {
-                    this.endPoint.set(posX, 0, posZ);
-                }
-            }
-        }
-    }
-
-    private createStartAndEndPads(): void {
-        const padRadius = Math.min(this.cellSizeX, this.cellSizeZ) * 0.4;
-
-        // Start pad (Green glowing floor ring)
-        const startPadGeo = new THREE.CylinderGeometry(padRadius, padRadius, 0.05, 32);
-        const startPadMat = new THREE.MeshStandardMaterial({
-            color: 0x00ff88,
-            emissive: 0x00ff88,
-            emissiveIntensity: 0.7
-        });
-        this.startPad = new THREE.Mesh(startPadGeo, startPadMat);
-        this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
-        this.container.add(this.startPad);
-
-        // End pad (Gold cylinder)
-        const endPadGeo = new THREE.CylinderGeometry(padRadius, padRadius, 0.1, 32);
-        const endPadMat = new THREE.MeshStandardMaterial({
-            color: 0xffaa00,
-            emissive: 0xff8800,
-            emissiveIntensity: 0.5,
-            metalness: 0.8,
-            roughness: 0.2
-        });
-        this.endPad = new THREE.Mesh(endPadGeo, endPadMat);
-        this.endPad.position.set(this.endPoint.x, 0.05, this.endPoint.z);
-        this.container.add(this.endPad);
-
-        // Special Item floating at eye height (~1.3m) over end pad
-        const itemGeo = new THREE.OctahedronGeometry(0.3, 0);
-        const itemMat = new THREE.MeshStandardMaterial({
-            color: 0xffd700,
-            emissive: 0xffaa00,
-            emissiveIntensity: 0.8,
-            roughness: 0.1
-        });
-        this.goalItemMesh = new THREE.Mesh(itemGeo, itemMat);
-        this.goalItemMesh.position.set(this.endPoint.x, 1.3, this.endPoint.z);
-        this.container.add(this.goalItemMesh);
-    }
-
-    private createPlayer(): void {
-        const radius = 0.3; // 0.3m radius representing player footprint
-        const playerGeo = new THREE.CylinderGeometry(radius, radius, 0.1, 24);
+    private createPlayerAvatar(): void {
+        const radius = 0.3;
+        const geo = new THREE.CylinderGeometry(radius, radius, 0.1, 24);
         this.playerMaterial = new THREE.MeshStandardMaterial({
             color: this.normalPlayerColor,
             emissive: this.normalPlayerColor,
             emissiveIntensity: 0.6
         });
-        this.playerMesh = new THREE.Mesh(playerGeo, this.playerMaterial);
+        this.playerMesh = new THREE.Mesh(geo, this.playerMaterial);
         this.playerSphere.radius = radius;
-        this.resetPlayerPosition();
         this.container.add(this.playerMesh);
     }
 
-    public resetPlayerPosition(): void {
-        this.updateStartPoint();
-        this.playerMesh.position.copy(this.startPoint);
-        this.playerSphere.center.set(this.startPoint.x, 0.5, this.startPoint.z);
-        this.inputVelocity.set(0, 0);
-        this.isCollidingWithWall = false;
-        this.wallCollisionTimer = 0;
-        this.graceNotifyTimer = 0;
-        this.returnNotifyTimer = 0;
-        this.setPlayerVisualState('normal');
+    /**
+     * Bind 3D visual nodes imported from Mattercraft (walls, flag, startPad, gem).
+     */
+    public bindCustomSceneNodes(nodes: {
+        collidersGroup?: THREE.Group | THREE.Object3D | any;
+        wallsGroup?: THREE.Group | THREE.Object3D | any;
+        startPad?: THREE.Object3D | any;
+        flag?: THREE.Object3D | any;
+        goalItem?: THREE.Object3D | any;
+    }): void {
+        this.rawWallsNode = nodes.collidersGroup?.element || nodes.collidersGroup || nodes.wallsGroup?.element || nodes.wallsGroup;
+
+        if (this.rawWallsNode) {
+            this.scanWallMeshes();
+        }
+
+        // Bind StartZone (handles flag & translucent green ground pad)
+        this.startZone.bindNodes(this.container, {
+            flag: nodes.flag,
+            startPad: nodes.startPad
+        });
+
+        // Bind CollectibleItem (handles golden gem, spin animation, pickup)
+        if (nodes.goalItem) {
+            this.collectible.bindModel(nodes.goalItem);
+        }
+
+        this.resetPlayerPosition();
     }
 
+    /**
+     * Scans the walls node for collision meshes.
+     * Automatically filters out floors, grounds, pads, flags, and collectibles!
+     */
+    public scanWallMeshes(): void {
+        if (!this.rawWallsNode) return;
+
+        const wallsObj = this.rawWallsNode;
+        wallsObj.updateMatrixWorld(true);
+        this.container.updateMatrixWorld(true);
+
+        const foundMeshes: THREE.Mesh[] = [];
+
+        wallsObj.traverse((child: any) => {
+            if (child.isMesh && child.geometry) {
+                const name = (child.name || '').toLowerCase();
+
+                // Exclude non-wall meshes (floors, pads, flags, gems)
+                let curr: THREE.Object3D | null = child;
+                let isNonWall = false;
+                while (curr && curr !== wallsObj) {
+                    const n = (curr.name || '').toLowerCase();
+                    if (n.includes('floor') || n.includes('ground') || n.includes('pad') || 
+                        n.includes('flag') || n.includes('start') || n.includes('item') || 
+                        n.includes('gem') || n.includes('collectible') || n.includes('icosphere')) {
+                        isNonWall = true;
+                        break;
+                    }
+                    curr = curr.parent;
+                }
+
+                if (isNonWall || name.includes('floor') || name.includes('ground') || name.includes('pad') ||
+                    name.includes('flag') || name.includes('start') || name.includes('item') ||
+                    name.includes('gem') || name.includes('collectible') || name.includes('icosphere')) {
+                    return;
+                }
+
+                // Double-sided materials so raycasts hit both front and back faces
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((m: any) => { m.side = THREE.DoubleSide; });
+                    } else {
+                        child.material.side = THREE.DoubleSide;
+                    }
+                }
+
+                foundMeshes.push(child);
+            }
+        });
+
+        if (foundMeshes.length > 0) {
+            this.customWallMeshes = foundMeshes;
+            console.log(`[MazeGame] Detected ${this.customWallMeshes.length} wall mesh(es) for collisions.`);
+        }
+    }
+
+    public getLoadedCollidersCount(): number {
+        return this.customWallMeshes.length;
+    }
+    // #endregion
+
+    // #region LIFECYCLE & RESET
     public override start(): void {
         this.isActive = true;
         this.isCompleted = false;
         this.isTrialWon = false;
         this.isWaitingToStart = true;
-        this.stopTimer(); // Paused until player steps into the green start area
-        this.setStartPadVisible(true);
+        this.stopTimer(); // Paused until player steps into the green start zone
+        this.startZone.setVisible(true);
         this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
     }
 
@@ -630,19 +260,25 @@ export class MazeGame extends BaseMiniGame {
         this.isWaitingToStart = true;
         this.resetTimer();
         this.stopTimer();
-        this.setStartPadVisible(true);
-        if (this.goalItemMesh) {
-            this.goalItemMesh.visible = true;
-        }
+        this.startZone.setVisible(true);
+        this.collectible.reset();
         this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
     }
 
-    public override notify(message: string, type: import('./BaseMiniGame').NotificationType = 'info'): void {
-        super.notify(message, type);
+    public resetPlayerPosition(): void {
+        const startPos = this.startZone.getCenterPosition();
+        this.playerMesh.position.copy(startPos);
+        this.playerSphere.center.set(startPos.x, 0.5, startPos.z);
+        this.inputVelocity.set(0, 0);
+        this.isCollidingWithWall = false;
+        this.wallCollisionTimer = 0;
+        this.graceNotifyTimer = 0;
+        this.returnNotifyTimer = 0;
+        this.setPlayerVisualState('normal');
     }
 
     /**
-     * Restart current trial immediately (can be called manually from UI button or upon failure reset)
+     * Restart current trial immediately (called by UI button or after failure reset).
      */
     public restartTrial(): void {
         this.isActive = true;
@@ -654,39 +290,35 @@ export class MazeGame extends BaseMiniGame {
         this.returnNotifyTimer = 0;
         this.resetTimer();
         this.stopTimer();
-        if (this.goalItemMesh) {
-            this.goalItemMesh.visible = true;
-        }
+        this.collectible.reset();
 
-        const distToStart = this.getDistanceToStart();
-        if (distToStart < 1.4) {
-            // Already inside the start area!
+        const check = this.startZone.checkPlayer(this.playerMesh.position);
+        if (check.isInside) {
+            // Player is already standing inside the start area!
             this.isWaitingToStart = false;
             this.isWaitingForPhysicalReturn = false;
-            this.setStartPadVisible(false);
+            this.startZone.setVisible(false);
             this.startTimer();
             this.setPlayerVisualState('normal');
             this.notify('🔄 Trial restarted! GO!', 'success');
         } else {
-            // Outside start area, prompt them to go to the green zone:
+            // Outside start area, prompt to walk to the flag:
             this.isWaitingToStart = true;
             this.isWaitingForPhysicalReturn = false;
-            this.setStartPadVisible(true);
+            this.startZone.setVisible(true);
             this.setPlayerVisualState('normal');
             this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
         }
     }
 
-    public setMovementInput(dx: number, dz: number): void {
-        this.isUsingKeyboard = true;
-        this.inputVelocity.set(dx, dz);
-        if (this.inputVelocity.lengthSq() > 1) {
-            this.inputVelocity.normalize();
-        }
+    public override notify(message: string, type: import('./BaseMiniGame').NotificationType = 'info'): void {
+        super.notify(message, type);
     }
+    // #endregion
 
+    // #region MAIN GAME LOOP
     protected onUpdate(deltaTime: number): void {
-        // If GLTF models load asynchronously, retry scanning every 0.5s until meshes appear
+        // Asynchronous GLTF scan retry if models take a moment to load
         if (this.customWallMeshes.length === 0 && this.rawWallsNode) {
             this.lastMeshScanTime += deltaTime;
             if (this.lastMeshScanTime >= 0.5) {
@@ -695,26 +327,7 @@ export class MazeGame extends BaseMiniGame {
             }
         }
 
-        // If start pad meshes loaded asynchronously, style them as soon as available
-        if (!this.isStartPadStyled && this.startPadObjRef) {
-            this.styleStartPad(this.startPadObjRef);
-        }
-
-        // Dynamically track custom artist pads if present
-        if (this.startPadObjRef) {
-            this.updateStartPoint();
-        }
-        if (this.endPadObjRef || this.goalItemMesh) {
-            this.updateEndPoint();
-        }
-
-        // Animate floating special item
-        if (this.goalItemMesh && this.goalItemMesh.visible) {
-            this.goalItemMesh.rotation.y += deltaTime * 1.5;
-            this.goalItemMesh.rotation.x += deltaTime * 0.5;
-        }
-
-        // Track Player Position
+        // 1. ALWAYS Track Player Position from 6-DOF AR Camera
         if (this.camera && !this.isUsingKeyboard) {
             this.camera.getWorldPosition(this.tempWorldPos);
             this.tempLocalPos.copy(this.tempWorldPos);
@@ -731,28 +344,28 @@ export class MazeGame extends BaseMiniGame {
             this.playerSphere.center.set(this.playerMesh.position.x, 0.5, this.playerMesh.position.z);
         }
 
-        // If the trial has already been won, keep camera tracking the player knob, but stop maze gameplay checks
+        // If the trial has already been won, keep camera tracking active but pause trial collisions
         if (this.isTrialWon) {
             return;
         }
 
-        // Check Start Area Entrance / Physical Return
-        const distToStart = this.getDistanceToStart();
+        // 2. Start Area Entrance & Physical Walk-Back Checks
+        const startCheck = this.startZone.checkPlayer(this.playerMesh.position);
 
         if (this.isWaitingToStart) {
             if (this.isWaitingForPhysicalReturn) {
-                // Penalty state: counting down distance back to start
+                // Penalty state: counting down distance back to green start area
                 this.returnNotifyTimer += deltaTime;
                 if (this.returnNotifyTimer >= 0.5) {
                     this.returnNotifyTimer = 0;
-                    this.notify(`⛔ TRIAL FAILED: Hit Wall! Walk back to green Start Area (${distToStart.toFixed(1)}m)`, 'error');
+                    this.notify(`⛔ TRIAL FAILED: Hit Wall! Walk back to green Start Area (${startCheck.distance.toFixed(1)}m)`, 'error');
                 }
 
-                if (distToStart < 1.4) {
+                if (startCheck.isInside) {
                     this.isWaitingForPhysicalReturn = false;
                     this.isWaitingToStart = false;
                     this.returnNotifyTimer = 0;
-                    this.setStartPadVisible(false); // Disappears once player enters!
+                    this.startZone.setVisible(false); // Disappears once player enters!
                     this.resetTimer();
                     this.startTimer();
                     this.setPlayerVisualState('normal');
@@ -762,10 +375,10 @@ export class MazeGame extends BaseMiniGame {
                     }
                 }
             } else {
-                // Waiting for player to enter start area on initial load or restart:
-                if (distToStart < 1.4) {
+                // Waiting for player to enter start area on initial load or restart
+                if (startCheck.isInside) {
                     this.isWaitingToStart = false;
-                    this.setStartPadVisible(false); // Disappears once player enters!
+                    this.startZone.setVisible(false); // Disappears once player enters!
                     this.resetTimer();
                     this.startTimer();
                     this.setPlayerVisualState('normal');
@@ -775,33 +388,24 @@ export class MazeGame extends BaseMiniGame {
                     }
                 }
             }
-            return;
+            return; // Outside the maze waiting to start, do not process wall collisions or collectible checks!
         }
 
-        // Wall Collision Check (Precise mesh raycast + bounding boxes)
+        // 3. Wall Collision Proximity Check (360-degree Raycasting)
         let touchingAnyWall = false;
 
-        // 1. Check against any individual wall bounding boxes
-        for (const wallBox of this.wallBoundingBoxes) {
-            if (wallBox.intersectsSphere(this.playerSphere)) {
-                touchingAnyWall = true;
-                break;
-            }
-        }
-
-        // 2. High-precision raycast against actual wall polygons (e.g. mazeWalls.glb)
-        if (!touchingAnyWall && this.customWallMeshes.length > 0) {
+        if (this.customWallMeshes.length > 0) {
             const worldCenter = new THREE.Vector3();
             this.playerMesh.getWorldPosition(worldCenter);
             worldCenter.y += 0.8; // Waist height
 
-            const checkDistance = this.collisionDistance; // Proximity threshold (e.g. 0.25m, tuned in index.ts)
+            const checkDist = this.collisionDistance;
 
             for (const dir of this.rayDirections) {
                 this.raycaster.set(worldCenter, dir);
-                this.raycaster.far = checkDistance;
+                this.raycaster.far = checkDist;
                 const hits = this.raycaster.intersectObjects(this.customWallMeshes, true);
-                if (hits.length > 0 && hits[0].distance <= checkDistance) {
+                if (hits.length > 0 && hits[0].distance <= checkDist) {
                     touchingAnyWall = true;
                     break;
                 }
@@ -836,7 +440,7 @@ export class MazeGame extends BaseMiniGame {
                     this.wallCollisionTimer = 0;
                     this.graceNotifyTimer = 0;
                     this.stopTimer(); // Halt trial timer on failure!
-                    this.setStartPadVisible(true); // Reappears as low-opacity green indicator!
+                    this.startZone.setVisible(true); // Reappears as glowing green ground area!
                     this.setPlayerVisualState('warning');
                     this.notify('⛔ TRIAL FAILED: Hit Wall! Walk back to green Start Area to retry.', 'error');
                     if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
@@ -855,29 +459,26 @@ export class MazeGame extends BaseMiniGame {
             }
         }
 
-        // Win Condition
-        const distToEnd = new THREE.Vector2(this.playerSphere.center.x - this.endPoint.x, this.playerSphere.center.z - this.endPoint.z).length();
-        const goalThreshold = Math.min(this.cellSizeX, this.cellSizeZ) * 0.6;
-        const winThreshold = Math.max(goalThreshold, 1.2);
-        if (distToEnd < winThreshold) {
+        // 4. Update Collectible (Gem Spinning & Proximity Pickup)
+        const collectedJustNow = this.collectible.update(deltaTime, this.playerMesh.position);
+        if (collectedJustNow) {
             this.onWin();
         }
     }
+    // #endregion
 
+    // #region WIN STATE
     public override onWin(): void {
         if (this.isTrialWon) return;
         this.isTrialWon = true;
 
-        if (this.goalItemMesh) {
-            this.goalItemMesh.visible = false;
-        }
         if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
             try { (navigator as any).vibrate([150, 80, 200]); } catch (e) {}
         }
 
         super.onWin();
 
-        // CRUCIAL FIX: Re-enable isActive so Three.js camera tracking continues to move the player knob!
+        // Keep isActive = true so Three.js camera tracking continues to move the player knob!
         this.isActive = true;
 
         this.notify('🎉 VICTORY! You collected the Wind Gem! [1/10]', 'success');
@@ -893,6 +494,16 @@ export class MazeGame extends BaseMiniGame {
             this.playerMaterial.color.setHex(this.normalPlayerColor);
             this.playerMaterial.emissive.setHex(this.normalPlayerColor);
             this.playerMaterial.emissiveIntensity = 0.6;
+        }
+    }
+    // #endregion
+
+    // #region DESKTOP KEYBOARD CONTROLS
+    public setMovementInput(dx: number, dz: number): void {
+        this.isUsingKeyboard = true;
+        this.inputVelocity.set(dx, dz);
+        if (this.inputVelocity.lengthSq() > 1) {
+            this.inputVelocity.normalize();
         }
     }
 
@@ -921,4 +532,5 @@ export class MazeGame extends BaseMiniGame {
             });
         }
     }
+    // #endregion
 }

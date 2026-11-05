@@ -4,8 +4,8 @@
 	"constructorProps": {
 	},
 	"entitiesByLabel": {
-		"Box": {
-			"194aae695cba4b60a35c287f3e37fbcf": true
+		"Colliders/Walls": {
+			"61e95a6f823a4dce9c865e93216bfac8": true
 		},
 		"DefaultCookieConsent": {
 			"0ba8e27369df45ca897731dcb1e39bcf": true
@@ -21,6 +21,36 @@
 		},
 		"DirectionalLight": {
 			"857f9901b65b42c89a3ff04470d70738": true
+		},
+		"Game_10_[Placeholder]  ": {
+			"ed11c67097044892b68a40f0856e6f50": true
+		},
+		"Game_1_Maze": {
+			"c9a0465d592d4e3181ffd1f812d35510": true
+		},
+		"Game_2_[Placeholder]": {
+			"34ca056c7ccf43ed8c5a78282d47af57": true
+		},
+		"Game_3_[Placeholder] ": {
+			"970d9e2ba0ea4d13beb8ede9673a08fa": true
+		},
+		"Game_4_[Placeholder]  ": {
+			"c6f66cdc444f41e1a5560e62d9dc12d1": true
+		},
+		"Game_5_[Placeholder]  ": {
+			"f5a03bfbdcad4b5ab052073465fc7632": true
+		},
+		"Game_6_[Placeholder]  ": {
+			"646c65b3ea974f3abd78f6ef9eff6696": true
+		},
+		"Game_7_[Placeholder]  ": {
+			"d9032989194b452780c5b695a4c33625": true
+		},
+		"Game_8_[Placeholder]  ": {
+			"3ce8565850694cf592831bdf1ca185e8": true
+		},
+		"Game_9_[Placeholder]  ": {
+			"77091578433c472cba3958ae39d672f2": true
 		},
 		"Ground Anchor": {
 			"7cbeb4f4351046cca1dfb5003bebc0f7": true
@@ -31,16 +61,31 @@
 		"ShadowPlane": {
 			"bf1d127bf7234511b3cdc3d5a98af7b0": true
 		},
+		"StartPad": {
+			"a3edba89668642ff9de207484ca2395d": true
+		},
 		"WorldTracker": {
 			"79f854d5bb6b4a0b84ba0a71efacb9cc": true
 		},
 		"ZapparCamera": {
 			"ef58d7d572f244dd99ff82af20165930": true
+		},
+		"flag": {
+			"b83cf37335cb4b3da7c9fcb8853beedc": true
+		},
+		"gem": {
+			"bc397bd47e99481db6243d80577a087f": true
+		},
+		"mazeFloor.glb": {
+			"e7205bb4e192484282c0ea63e91abac7": true
+		},
+		"mazeWalls.glb": {
+			"1072cb2a61cc43e7b4b6f373b3bb1fe5": true
 		}
 	},
 	"entitiesByScriptName": {
-		"Box": {
-			"194aae695cba4b60a35c287f3e37fbcf": true
+		"CollidersWalls": {
+			"61e95a6f823a4dce9c865e93216bfac8": true
 		},
 		"DefaultCookieConsent": {
 			"0ba8e27369df45ca897731dcb1e39bcf": true
@@ -57,25 +102,81 @@
 		"DirectionalLight": {
 			"857f9901b65b42c89a3ff04470d70738": true
 		},
+		"Game_10_Placeholder_": {
+			"ed11c67097044892b68a40f0856e6f50": true
+		},
+		"Game_1_Maze": {
+			"c9a0465d592d4e3181ffd1f812d35510": true
+		},
+		"Game_2_Placeholder": {
+			"34ca056c7ccf43ed8c5a78282d47af57": true
+		},
+		"Game_3_Placeholder_": {
+			"970d9e2ba0ea4d13beb8ede9673a08fa": true
+		},
+		"Game_4_Placeholder_": {
+			"c6f66cdc444f41e1a5560e62d9dc12d1": true
+		},
+		"Game_5_Placeholder_": {
+			"f5a03bfbdcad4b5ab052073465fc7632": true
+		},
+		"Game_6_Placeholder_": {
+			"646c65b3ea974f3abd78f6ef9eff6696": true
+		},
+		"Game_7_Placeholder_": {
+			"d9032989194b452780c5b695a4c33625": true
+		},
+		"Game_8_Placeholder_": {
+			"3ce8565850694cf592831bdf1ca185e8": true
+		},
+		"Game_9_Placeholder_": {
+			"77091578433c472cba3958ae39d672f2": true
+		},
 		"Ground_Anchor": {
 			"7cbeb4f4351046cca1dfb5003bebc0f7": true
 		},
 		"ShadowPlane": {
 			"bf1d127bf7234511b3cdc3d5a98af7b0": true
 		},
+		"StartPad": {
+			"a3edba89668642ff9de207484ca2395d": true
+		},
 		"WorldTracker": {
 			"79f854d5bb6b4a0b84ba0a71efacb9cc": true
 		},
 		"ZapparCamera": {
 			"ef58d7d572f244dd99ff82af20165930": true
+		},
+		"flag": {
+			"b83cf37335cb4b3da7c9fcb8853beedc": true
+		},
+		"gem": {
+			"bc397bd47e99481db6243d80577a087f": true
+		},
+		"mazeFloor_glb": {
+			"e7205bb4e192484282c0ea63e91abac7": true
+		},
+		"mazeWalls_glb": {
+			"1072cb2a61cc43e7b4b6f373b3bb1fe5": true
 		}
 	},
 	"entityConstructorProps": {
 		"0ba8e27369df45ca897731dcb1e39bcf": {
 		},
-		"194aae695cba4b60a35c287f3e37fbcf": {
+		"1072cb2a61cc43e7b4b6f373b3bb1fe5": {
+			"source": "file://./mazeWalls.glb"
+		},
+		"34ca056c7ccf43ed8c5a78282d47af57": {
+		},
+		"3ce8565850694cf592831bdf1ca185e8": {
 		},
 		"52148d8eafe3426085e700e049662c07": {
+		},
+		"61e95a6f823a4dce9c865e93216bfac8": {
+		},
+		"646c65b3ea974f3abd78f6ef9eff6696": {
+		},
+		"77091578433c472cba3958ae39d672f2": {
 		},
 		"79f854d5bb6b4a0b84ba0a71efacb9cc": {
 		},
@@ -85,11 +186,35 @@
 		},
 		"857f9901b65b42c89a3ff04470d70738": {
 		},
+		"970d9e2ba0ea4d13beb8ede9673a08fa": {
+		},
+		"a3edba89668642ff9de207484ca2395d": {
+			"source": "file://./startPod.glb"
+		},
 		"a57f5d58e38e4a0b918dcf605ea12736": {
+		},
+		"b83cf37335cb4b3da7c9fcb8853beedc": {
+			"source": "file://./flag.glb"
+		},
+		"bc397bd47e99481db6243d80577a087f": {
+			"source": "file://./gem.glb"
 		},
 		"bf1d127bf7234511b3cdc3d5a98af7b0": {
 		},
+		"c6f66cdc444f41e1a5560e62d9dc12d1": {
+		},
+		"c9a0465d592d4e3181ffd1f812d35510": {
+		},
+		"d9032989194b452780c5b695a4c33625": {
+		},
+		"e7205bb4e192484282c0ea63e91abac7": {
+			"source": "file://./mazeFloor.glb"
+		},
+		"ed11c67097044892b68a40f0856e6f50": {
+		},
 		"ef58d7d572f244dd99ff82af20165930": {
+		},
+		"f5a03bfbdcad4b5ab052073465fc7632": {
 		}
 	},
 	"entityPropOverrides": {
@@ -141,16 +266,11 @@
 	"entityProps": {
 		"0ba8e27369df45ca897731dcb1e39bcf": {
 		},
-		"194aae695cba4b60a35c287f3e37fbcf": {
+		"1072cb2a61cc43e7b4b6f373b3bb1fe5": {
 			"position": [
 				0,
 				0,
-				0
-			],
-			"rotation": [
-				0,
-				0,
-				0
+				1
 			],
 			"scale": [
 				1,
@@ -158,13 +278,26 @@
 				1
 			]
 		},
+		"34ca056c7ccf43ed8c5a78282d47af57": {
+		},
+		"3ce8565850694cf592831bdf1ca185e8": {
+		},
 		"52148d8eafe3426085e700e049662c07": {
+		},
+		"61e95a6f823a4dce9c865e93216bfac8": {
+		},
+		"646c65b3ea974f3abd78f6ef9eff6696": {
+		},
+		"77091578433c472cba3958ae39d672f2": {
 		},
 		"79f854d5bb6b4a0b84ba0a71efacb9cc": {
 		},
 		"7b6fb4d895774174b5d151eec86b704c": {
 		},
 		"7cbeb4f4351046cca1dfb5003bebc0f7": {
+			"visibleWhenInitializing": false,
+			"visibleWhenPaused": true,
+			"visibleWhenStopped": false
 		},
 		"857f9901b65b42c89a3ff04470d70738": {
 			"castShadow": true,
@@ -174,11 +307,64 @@
 				0
 			]
 		},
+		"970d9e2ba0ea4d13beb8ede9673a08fa": {
+		},
+		"a3edba89668642ff9de207484ca2395d": {
+			"castShadow": false,
+			"position": [
+				0,
+				0,
+				-12
+			],
+			"receiveShadow": false
+		},
 		"a57f5d58e38e4a0b918dcf605ea12736": {
+		},
+		"b83cf37335cb4b3da7c9fcb8853beedc": {
+			"position": [
+				0,
+				0,
+				-12
+			]
+		},
+		"bc397bd47e99481db6243d80577a087f": {
+			"position": [
+				0,
+				0,
+				-10
+			]
 		},
 		"bf1d127bf7234511b3cdc3d5a98af7b0": {
 		},
+		"c6f66cdc444f41e1a5560e62d9dc12d1": {
+		},
+		"c9a0465d592d4e3181ffd1f812d35510": {
+			"position": [
+				0,
+				0,
+				-15
+			],
+			"rotation": [
+				0,
+				3.141592653589793,
+				0
+			]
+		},
+		"d9032989194b452780c5b695a4c33625": {
+		},
+		"e7205bb4e192484282c0ea63e91abac7": {
+			"position": [
+				0,
+				0,
+				1
+			]
+		},
+		"ed11c67097044892b68a40f0856e6f50": {
+		},
 		"ef58d7d572f244dd99ff82af20165930": {
+			"far": 2000
+		},
+		"f5a03bfbdcad4b5ab052073465fc7632": {
 		}
 	},
 	"id": "5d4513e843574c04847bf1474912090f",
@@ -193,15 +379,35 @@
 			"scriptName": "DefaultCookieConsent",
 			"type": "@zcomponent/core/lib/components/DefaultCookieConsent#DefaultCookieConsent"
 		},
-		"194aae695cba4b60a35c287f3e37fbcf": {
-			"id": "194aae695cba4b60a35c287f3e37fbcf",
-			"label": "Box",
+		"1072cb2a61cc43e7b4b6f373b3bb1fe5": {
+			"id": "1072cb2a61cc43e7b4b6f373b3bb1fe5",
+			"label": "mazeWalls.glb",
 			"parent": {
-				"id": "79f854d5bb6b4a0b84ba0a71efacb9cc",
-				"order": "Zz"
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "Zw"
 			},
-			"scriptName": "Box",
-			"type": "@zcomponent/three/lib/components/meshes/Box#Box"
+			"scriptName": "mazeWalls_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
+		"34ca056c7ccf43ed8c5a78282d47af57": {
+			"id": "34ca056c7ccf43ed8c5a78282d47af57",
+			"label": "Game_2_[Placeholder]",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a0"
+			},
+			"scriptName": "Game_2_Placeholder",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"3ce8565850694cf592831bdf1ca185e8": {
+			"id": "3ce8565850694cf592831bdf1ca185e8",
+			"label": "Game_8_[Placeholder]  ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a2"
+			},
+			"scriptName": "Game_8_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
 		},
 		"52148d8eafe3426085e700e049662c07": {
 			"id": "52148d8eafe3426085e700e049662c07",
@@ -212,6 +418,36 @@
 			},
 			"scriptName": "DefaultLoader",
 			"type": "@zcomponent/core/lib/components/DefaultLoader#DefaultLoader"
+		},
+		"61e95a6f823a4dce9c865e93216bfac8": {
+			"id": "61e95a6f823a4dce9c865e93216bfac8",
+			"label": "Colliders/Walls",
+			"parent": {
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "a0"
+			},
+			"scriptName": "CollidersWalls",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"646c65b3ea974f3abd78f6ef9eff6696": {
+			"id": "646c65b3ea974f3abd78f6ef9eff6696",
+			"label": "Game_6_[Placeholder]  ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a1"
+			},
+			"scriptName": "Game_6_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"77091578433c472cba3958ae39d672f2": {
+			"id": "77091578433c472cba3958ae39d672f2",
+			"label": "Game_9_[Placeholder]  ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a2V"
+			},
+			"scriptName": "Game_9_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
 		},
 		"79f854d5bb6b4a0b84ba0a71efacb9cc": {
 			"id": "79f854d5bb6b4a0b84ba0a71efacb9cc",
@@ -253,6 +489,26 @@
 			"scriptName": "DirectionalLight",
 			"type": "@zcomponent/three/lib/components/lights/DirectionalLight#DirectionalLight"
 		},
+		"970d9e2ba0ea4d13beb8ede9673a08fa": {
+			"id": "970d9e2ba0ea4d13beb8ede9673a08fa",
+			"label": "Game_3_[Placeholder] ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a0V"
+			},
+			"scriptName": "Game_3_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"a3edba89668642ff9de207484ca2395d": {
+			"id": "a3edba89668642ff9de207484ca2395d",
+			"label": "StartPad",
+			"parent": {
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "Zx"
+			},
+			"scriptName": "StartPad",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
 		"a57f5d58e38e4a0b918dcf605ea12736": {
 			"id": "a57f5d58e38e4a0b918dcf605ea12736",
 			"label": "DefaultEnvironment",
@@ -262,6 +518,26 @@
 			},
 			"scriptName": "DefaultEnvironment",
 			"type": "@zcomponent/three/lib/components/environments/DefaultEnvironment#DefaultEnvironment"
+		},
+		"b83cf37335cb4b3da7c9fcb8853beedc": {
+			"id": "b83cf37335cb4b3da7c9fcb8853beedc",
+			"label": "flag",
+			"parent": {
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "Zu"
+			},
+			"scriptName": "flag",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
+		"bc397bd47e99481db6243d80577a087f": {
+			"id": "bc397bd47e99481db6243d80577a087f",
+			"label": "gem",
+			"parent": {
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "Zt"
+			},
+			"scriptName": "gem",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"bf1d127bf7234511b3cdc3d5a98af7b0": {
 			"id": "bf1d127bf7234511b3cdc3d5a98af7b0",
@@ -274,6 +550,56 @@
 			"scriptName": "ShadowPlane",
 			"type": "@zcomponent/three/lib/components/meshes/ShadowPlane#ShadowPlane"
 		},
+		"c6f66cdc444f41e1a5560e62d9dc12d1": {
+			"id": "c6f66cdc444f41e1a5560e62d9dc12d1",
+			"label": "Game_4_[Placeholder]  ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a0l"
+			},
+			"scriptName": "Game_4_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"c9a0465d592d4e3181ffd1f812d35510": {
+			"id": "c9a0465d592d4e3181ffd1f812d35510",
+			"label": "Game_1_Maze",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "Zz"
+			},
+			"scriptName": "Game_1_Maze",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"d9032989194b452780c5b695a4c33625": {
+			"id": "d9032989194b452780c5b695a4c33625",
+			"label": "Game_7_[Placeholder]  ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a1V"
+			},
+			"scriptName": "Game_7_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"e7205bb4e192484282c0ea63e91abac7": {
+			"id": "e7205bb4e192484282c0ea63e91abac7",
+			"label": "mazeFloor.glb",
+			"parent": {
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "Zv"
+			},
+			"scriptName": "mazeFloor_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
+		"ed11c67097044892b68a40f0856e6f50": {
+			"id": "ed11c67097044892b68a40f0856e6f50",
+			"label": "Game_10_[Placeholder]  ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a2l"
+			},
+			"scriptName": "Game_10_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
 		"ef58d7d572f244dd99ff82af20165930": {
 			"id": "ef58d7d572f244dd99ff82af20165930",
 			"label": "ZapparCamera",
@@ -283,6 +609,16 @@
 			},
 			"scriptName": "ZapparCamera",
 			"type": "@zcomponent/zappar-three/lib/components/cameras/Camera#ZapparCamera"
+		},
+		"f5a03bfbdcad4b5ab052073465fc7632": {
+			"id": "f5a03bfbdcad4b5ab052073465fc7632",
+			"label": "Game_5_[Placeholder]  ",
+			"parent": {
+				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
+				"order": "a0t"
+			},
+			"scriptName": "Game_5_Placeholder_",
+			"type": "@zcomponent/three/lib/components/Group#Group"
 		},
 		"root": {
 			"id": "root",
