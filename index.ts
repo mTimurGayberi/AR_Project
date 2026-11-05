@@ -316,26 +316,54 @@ if (!wallsGroup && threeScene) {
     });
 }
 
-const startPadNode = sceneNodes.StartPad 
+let startPadNode = sceneNodes.StartPad 
                   || sceneNodes['Start Pad']
                   || sceneNodes.Start_Pad
-                  || sceneNodes.Start;
+                  || sceneNodes.Start
+                  || sceneNodes.Flag
+                  || sceneNodes.StartFlag
+                  || sceneNodes['Start Flag']
+                  || sceneNodes['Flag.glb']
+                  || sceneNodes['flag.glb'];
 
-const endPadNode = sceneNodes.EndPad 
+let endPadNode = sceneNodes.EndPad 
                 || sceneNodes['End Pad']
                 || sceneNodes.End_Pad
                 || sceneNodes.End
                 || sceneNodes.Finish;
 
-const goalNode = sceneNodes.GoalItem 
+let goalNode = sceneNodes.GoalItem 
               || sceneNodes.WindGem 
               || sceneNodes['Goal Item'] 
               || sceneNodes.Collectible 
               || sceneNodes['Collectible']
+              || sceneNodes.Icosphere
+              || sceneNodes.IcoSphere
+              || sceneNodes['Icosphere.glb']
+              || sceneNodes['icosphere.glb']
               || sceneNodes.Item
               || sceneNodes.Goal;
 
-if (wallsGroup || startPadNode || endPadNode) {
+// Deep search Three.js scene if not found in root nodes
+if (!startPadNode && threeScene) {
+    threeScene.traverse((obj: any) => {
+        const n = (obj.name || '').toLowerCase();
+        if (n.includes('flag') || n.includes('startpad') || n.includes('start_pad')) {
+            startPadNode = obj;
+        }
+    });
+}
+
+if (!goalNode && threeScene) {
+    threeScene.traverse((obj: any) => {
+        const n = (obj.name || '').toLowerCase();
+        if (n.includes('icosphere') || n.includes('collectible') || n.includes('gem') || n.includes('goalitem')) {
+            goalNode = obj;
+        }
+    });
+}
+
+if (wallsGroup || startPadNode || endPadNode || goalNode) {
     mazeGame.bindCustomSceneNodes({
         collidersGroup: wallsGroup,
         startPad: startPadNode,

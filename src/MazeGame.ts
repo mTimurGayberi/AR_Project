@@ -195,11 +195,12 @@ export class MazeGame extends BaseMiniGame {
     }
 
     public updateEndPoint(): void {
-        if (!this.endPadObjRef) return;
-        this.endPadObjRef.updateMatrixWorld(true);
+        const targetObj = this.endPadObjRef || this.goalItemMesh;
+        if (!targetObj) return;
+        targetObj.updateMatrixWorld(true);
         this.container.updateMatrixWorld(true);
         const worldPos = new THREE.Vector3();
-        this.endPadObjRef.getWorldPosition(worldPos);
+        targetObj.getWorldPosition(worldPos);
         this.container.worldToLocal(worldPos);
         this.endPoint.set(worldPos.x, 0, worldPos.z);
     }
@@ -264,6 +265,10 @@ export class MazeGame extends BaseMiniGame {
             const goalMesh = goalObj.element || goalObj;
             this.goalItemMesh = goalMesh;
             console.log('[MazeGame] Bound custom collectible item from artist!');
+            if (!this.endPadObjRef) {
+                this.updateEndPoint();
+                console.log(`[MazeGame] Using collectible item position as win target (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})`);
+            }
         }
     }
 
@@ -285,19 +290,23 @@ export class MazeGame extends BaseMiniGame {
             if (child.isMesh && child.geometry) {
                 const name = (child.name || '').toLowerCase();
 
-                // Check if this mesh or any parent is a floor or a pad
+                // Check if this mesh or any parent is a floor, pad, flag, or collectible
                 let curr: THREE.Object3D | null = child;
-                let isFloorOrPad = false;
+                let isNonWall = false;
                 while (curr && curr !== wallsObj) {
                     const n = (curr.name || '').toLowerCase();
-                    if (n.includes('floor') || n.includes('ground') || n.includes('pad')) {
-                        isFloorOrPad = true;
+                    if (n.includes('floor') || n.includes('ground') || n.includes('pad') || 
+                        n.includes('flag') || n.includes('start') || n.includes('item') || 
+                        n.includes('gem') || n.includes('collectible') || n.includes('icosphere') || n.includes('ico')) {
+                        isNonWall = true;
                         break;
                     }
                     curr = curr.parent;
                 }
 
-                if (isFloorOrPad || name.includes('floor') || name.includes('ground') || name.includes('pad')) {
+                if (isNonWall || name.includes('floor') || name.includes('ground') || name.includes('pad') ||
+                    name.includes('flag') || name.includes('start') || name.includes('item') ||
+                    name.includes('gem') || name.includes('collectible') || name.includes('icosphere') || name.includes('ico')) {
                     return;
                 }
 
@@ -561,12 +570,12 @@ export class MazeGame extends BaseMiniGame {
         if (this.startPadObjRef) {
             this.updateStartPoint();
         }
-        if (this.endPadObjRef) {
+        if (this.endPadObjRef || this.goalItemMesh) {
             this.updateEndPoint();
         }
 
         // Animate floating special item
-        if (this.goalItemMesh) {
+        if (this.goalItemMesh && this.goalItemMesh.visible) {
             this.goalItemMesh.rotation.y += deltaTime * 1.5;
             this.goalItemMesh.rotation.x += deltaTime * 0.5;
         }
@@ -694,6 +703,13 @@ export class MazeGame extends BaseMiniGame {
         if (distToEnd < winThreshold) {
             this.onWin();
         }
+    }
+
+    public override onWin(): void {
+        if (this.goalItemMesh) {
+            this.goalItemMesh.visible = false;
+        }
+        super.onWin();
     }
 
     private setPlayerVisualState(state: 'normal' | 'warning'): void {
