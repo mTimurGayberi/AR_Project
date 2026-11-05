@@ -316,15 +316,16 @@ if (!wallsGroup && threeScene) {
     });
 }
 
+const flagNode = sceneNodes['flag.glb'] 
+              || sceneNodes.Flag 
+              || sceneNodes['Flag.glb'] 
+              || sceneNodes.flag 
+              || sceneNodes.StartFlag;
+
 let startPadNode = sceneNodes.StartPad 
                   || sceneNodes['Start Pad']
                   || sceneNodes.Start_Pad
-                  || sceneNodes.Start
-                  || sceneNodes.Flag
-                  || sceneNodes.StartFlag
-                  || sceneNodes['Start Flag']
-                  || sceneNodes['Flag.glb']
-                  || sceneNodes['flag.glb'];
+                  || sceneNodes.Start;
 
 let endPadNode = sceneNodes.EndPad 
                 || sceneNodes['End Pad']
@@ -345,10 +346,20 @@ let goalNode = sceneNodes.GoalItem
               || sceneNodes.Goal;
 
 // Deep search Three.js scene if not found in root nodes
+let resolvedFlagNode = flagNode;
+if (!resolvedFlagNode && threeScene) {
+    threeScene.traverse((obj: any) => {
+        const n = (obj.name || '').toLowerCase();
+        if (n.includes('flag')) {
+            resolvedFlagNode = obj;
+        }
+    });
+}
+
 if (!startPadNode && threeScene) {
     threeScene.traverse((obj: any) => {
         const n = (obj.name || '').toLowerCase();
-        if (n.includes('flag') || n.includes('startpad') || n.includes('start_pad')) {
+        if (n.includes('startpad') || n.includes('start_pad') || n.includes('pad')) {
             startPadNode = obj;
         }
     });
@@ -363,10 +374,11 @@ if (!goalNode && threeScene) {
     });
 }
 
-if (wallsGroup || startPadNode || endPadNode || goalNode) {
+if (wallsGroup || startPadNode || resolvedFlagNode || endPadNode || goalNode) {
     mazeGame.bindCustomSceneNodes({
         collidersGroup: wallsGroup,
         startPad: startPadNode,
+        flag: resolvedFlagNode,
         endPad: endPadNode,
         goalItem: goalNode
     });
@@ -374,7 +386,6 @@ if (wallsGroup || startPadNode || endPadNode || goalNode) {
 
 mazeGame.container.visible = true; // Fixed variant: immediately visible and ready!
 mazeGame.start();
-mazeGame.onNotification?.('Walk through the entrance into the maze towards the green Start Pad!', 'info');
 
 // 6. Game loop hook
 let lastTime = performance.now();
