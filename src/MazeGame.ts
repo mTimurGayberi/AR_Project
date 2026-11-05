@@ -202,49 +202,34 @@ export class MazeGame extends BaseMiniGame {
         let styledCount = 0;
         obj.traverse((child: any) => {
             if (child.isMesh) {
-                const mat = child.material;
-                if (mat) {
-                    const mats = Array.isArray(mat) ? mat : [mat];
-                    mats.forEach((m: any) => {
-                        if (m.color) m.color.setHex(0x00ff88);
-                        if (m.emissive) {
-                            m.emissive.setHex(0x00bb55);
-                            m.emissiveIntensity = 0.6;
-                        }
-                        m.transparent = true;
-                        m.opacity = 0.35; // Low opacity green area around flag
-                        m.depthWrite = false;
-                        m.needsUpdate = true;
-                    });
-                } else {
-                    child.material = new THREE.MeshStandardMaterial({
-                        color: 0x00ff88,
-                        emissive: 0x00bb55,
-                        emissiveIntensity: 0.6,
-                        transparent: true,
-                        opacity: 0.35,
-                        depthWrite: false
-                    });
-                }
+                // Use MeshBasicMaterial: unlit neon green with 35% opacity
+                // Guarantees bright vibrant green that never gets washed out to white by scene lights!
+                child.material = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(0x00ff88),
+                    transparent: true,
+                    opacity: 0.35,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                });
+                child.material.needsUpdate = true;
                 styledCount++;
             }
         });
         if (styledCount > 0) {
             this.isStartPadStyled = true;
-            console.log(`[MazeGame] Styled StartPad with glowing green material (${styledCount} mesh(es))`);
+            console.log(`[MazeGame] Applied MeshBasicMaterial neon green (opacity: 0.35) to StartPad (${styledCount} mesh(es))`);
         }
     }
 
     private createStartPadMesh(): void {
         const padRadius = 1.3;
         const padGeo = new THREE.CylinderGeometry(padRadius, padRadius, 0.04, 32);
-        const padMat = new THREE.MeshStandardMaterial({
-            color: 0x00ff88,
-            emissive: 0x00bb55,
-            emissiveIntensity: 0.5,
+        const padMat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0x00ff88),
             transparent: true,
             opacity: 0.35,
-            depthWrite: false
+            depthWrite: false,
+            side: THREE.DoubleSide
         });
         this.startPad = new THREE.Mesh(padGeo, padMat);
         this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
