@@ -202,34 +202,49 @@ export class MazeGame extends BaseMiniGame {
         let styledCount = 0;
         obj.traverse((child: any) => {
             if (child.isMesh) {
-                // Use MeshBasicMaterial: unlit neon green with 35% opacity
-                // Guarantees bright vibrant green that never gets washed out to white by scene lights!
-                child.material = new THREE.MeshBasicMaterial({
-                    color: new THREE.Color(0x00ff88),
-                    transparent: true,
-                    opacity: 0.35,
-                    depthWrite: false,
-                    side: THREE.DoubleSide
-                });
-                child.material.needsUpdate = true;
+                const mat = child.material;
+                if (mat) {
+                    const mats = Array.isArray(mat) ? mat : [mat];
+                    mats.forEach((m: any) => {
+                        if (m.color) m.color.setHex(0x00ff88);
+                        if (m.emissive) {
+                            m.emissive.setHex(0x00bb55);
+                            m.emissiveIntensity = 0.6;
+                        }
+                        m.transparent = true;
+                        m.opacity = 0.35; // Low opacity green area around flag
+                        m.depthWrite = false;
+                        m.needsUpdate = true;
+                    });
+                } else {
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: 0x00ff88,
+                        emissive: 0x00bb55,
+                        emissiveIntensity: 0.6,
+                        transparent: true,
+                        opacity: 0.35,
+                        depthWrite: false
+                    });
+                }
                 styledCount++;
             }
         });
         if (styledCount > 0) {
             this.isStartPadStyled = true;
-            console.log(`[MazeGame] Applied MeshBasicMaterial neon green (opacity: 0.35) to StartPad (${styledCount} mesh(es))`);
+            console.log(`[MazeGame] Styled StartPad with glowing green material (${styledCount} mesh(es))`);
         }
     }
 
     private createStartPadMesh(): void {
         const padRadius = 1.3;
         const padGeo = new THREE.CylinderGeometry(padRadius, padRadius, 0.04, 32);
-        const padMat = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(0x00ff88),
+        const padMat = new THREE.MeshStandardMaterial({
+            color: 0x00ff88,
+            emissive: 0x00bb55,
+            emissiveIntensity: 0.5,
             transparent: true,
             opacity: 0.35,
-            depthWrite: false,
-            side: THREE.DoubleSide
+            depthWrite: false
         });
         this.startPad = new THREE.Mesh(padGeo, padMat);
         this.startPad.position.set(this.startPoint.x, 0.02, this.startPoint.z);
@@ -248,7 +263,8 @@ export class MazeGame extends BaseMiniGame {
     }
 
     public updateEndPoint(): void {
-        const targetObj = this.endPadObjRef || this.goalItemMesh;
+        // Always prioritize the collectible gem as the win target
+        const targetObj = this.goalItemMesh || this.endPadObjRef;
         if (!targetObj) return;
         targetObj.updateMatrixWorld(true);
         this.container.updateMatrixWorld(true);
@@ -341,11 +357,8 @@ export class MazeGame extends BaseMiniGame {
         if (goalObj) {
             const goalMesh = goalObj.element || goalObj;
             this.goalItemMesh = goalMesh;
-            console.log('[MazeGame] Bound custom collectible item from artist!');
-            if (!this.endPadObjRef) {
-                this.updateEndPoint();
-                console.log(`[MazeGame] Using collectible item position as win target (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})`);
-            }
+            this.updateEndPoint();
+            console.log(`[MazeGame] Bound collectible gem as win target at (${this.endPoint.x.toFixed(2)}, ${this.endPoint.z.toFixed(2)})!`);
         }
     }
 
@@ -841,7 +854,11 @@ export class MazeGame extends BaseMiniGame {
         if (this.goalItemMesh) {
             this.goalItemMesh.visible = false;
         }
+        if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
+            try { (navigator as any).vibrate([150, 80, 200]); } catch (e) {}
+        }
         super.onWin();
+        this.notify('🎉 VICTORY! You collected the Wind Gem! [1/10]', 'success');
     }
 
     private setPlayerVisualState(state: 'normal' | 'warning'): void {

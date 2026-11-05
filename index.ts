@@ -333,7 +333,11 @@ let endPadNode = sceneNodes.EndPad
                 || sceneNodes.End
                 || sceneNodes.Finish;
 
-let goalNode = sceneNodes.GoalItem 
+let goalNode = sceneNodes.gem
+              || sceneNodes.Gem
+              || sceneNodes['gem.glb']
+              || sceneNodes['Gem.glb']
+              || sceneNodes.GoalItem 
               || sceneNodes.WindGem 
               || sceneNodes['Goal Item'] 
               || sceneNodes.Collectible 
