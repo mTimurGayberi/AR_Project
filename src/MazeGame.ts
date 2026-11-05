@@ -66,6 +66,7 @@ export class MazeGame extends BaseMiniGame {
     private wallCollisionTimer: number = 0;
     private isWaitingForPhysicalReturn: boolean = false;
     private isWaitingToStart: boolean = true;
+    private isTrialWon: boolean = false;
     private returnNotifyTimer: number = 0;
     private graceNotifyTimer: number = 0;
     private normalPlayerColor: number = 0x00d2ff; // Bright cyan
@@ -612,6 +613,8 @@ export class MazeGame extends BaseMiniGame {
 
     public override start(): void {
         this.isActive = true;
+        this.isCompleted = false;
+        this.isTrialWon = false;
         this.isWaitingToStart = true;
         this.stopTimer(); // Paused until player steps into the green start area
         this.setStartPadVisible(true);
@@ -619,6 +622,9 @@ export class MazeGame extends BaseMiniGame {
     }
 
     public override reset(): void {
+        this.isActive = true;
+        this.isCompleted = false;
+        this.isTrialWon = false;
         this.resetPlayerPosition();
         this.isWaitingForPhysicalReturn = false;
         this.isWaitingToStart = true;
@@ -639,6 +645,9 @@ export class MazeGame extends BaseMiniGame {
      * Restart current trial immediately (can be called manually from UI button or upon failure reset)
      */
     public restartTrial(): void {
+        this.isActive = true;
+        this.isCompleted = false;
+        this.isTrialWon = false;
         this.isCollidingWithWall = false;
         this.wallCollisionTimer = 0;
         this.graceNotifyTimer = 0;
@@ -720,6 +729,11 @@ export class MazeGame extends BaseMiniGame {
             this.playerMesh.position.x += moveDeltaX;
             this.playerMesh.position.z += moveDeltaZ;
             this.playerSphere.center.set(this.playerMesh.position.x, 0.5, this.playerMesh.position.z);
+        }
+
+        // If the trial has already been won, keep camera tracking the player knob, but stop maze gameplay checks
+        if (this.isTrialWon) {
+            return;
         }
 
         // Check Start Area Entrance / Physical Return
@@ -851,13 +865,21 @@ export class MazeGame extends BaseMiniGame {
     }
 
     public override onWin(): void {
+        if (this.isTrialWon) return;
+        this.isTrialWon = true;
+
         if (this.goalItemMesh) {
             this.goalItemMesh.visible = false;
         }
         if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
             try { (navigator as any).vibrate([150, 80, 200]); } catch (e) {}
         }
+
         super.onWin();
+
+        // CRUCIAL FIX: Re-enable isActive so Three.js camera tracking continues to move the player knob!
+        this.isActive = true;
+
         this.notify('🎉 VICTORY! You collected the Wind Gem! [1/10]', 'success');
     }
 
