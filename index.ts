@@ -20,14 +20,22 @@ const mazeGame = new MazeGame({
 gameManager.registerGame(mazeGame);
 gameManager.setActiveGame(mazeGame.id);
 
-// Connect notifications from mazeGame to HUD
+// Connect notifications & restart button availability from mazeGame to HUD
 mazeGame.onNotification = (message, type) => {
     hud.notify(message, type);
+};
+
+mazeGame.onRestartAvailabilityChanged = (canRestart) => {
+    hud.setRestartVisible(canRestart);
 };
 
 // Connect HUD touch button callbacks to game
 hud.onRestartClicked = () => {
     mazeGame.restartTrial();
+};
+
+hud.onPlacementChanged = (placed) => {
+    mazeGame.setPlaced(placed);
 };
 
 hud.onResetAllClicked = () => {
@@ -38,9 +46,16 @@ hud.onResetAllClicked = () => {
 };
 
 // 3. Initialize Mattercraft 3D Scene
+const launchButtonEl = document.getElementById('launchButton');
 const result = initialize(Scene, {}, {
-    launchButton: document.getElementById('launchButton')
+    launchButton: launchButtonEl
 });
+
+if (launchButtonEl) {
+    launchButtonEl.addEventListener('click', () => {
+        hud.onLaunched();
+    });
+}
 
 const instance = result.rootInstance;
 const threeScene = useScene(result.contextManager);
@@ -164,6 +179,44 @@ mazeGame.bindCustomSceneNodes({
 mazeGame.container.visible = true;
 mazeGame.start();
 
+// 6.5 Sync placement state and game-started condition if UserPlacementAnchor exists in scene
+let hasPlacementAnchor = false;
+for (const key of Object.keys(sceneNodes)) {
+    const node = sceneNodes[key];
+    if (node && (node.onPlacing || node.onNotPlacing || (node.placementMode && node.placementMode.value !== undefined))) {
+        hasPlacementAnchor = true;
+        if (node.onPlacing && typeof node.onPlacing.addListener === 'function') {
+            node.onPlacing.addListener(() => {
+                mazeGame.setPlaced(false);
+                hud.setPlaced(false);
+            });
+        }
+        if (node.onNotPlacing && typeof node.onNotPlacing.addListener === 'function') {
+            node.onNotPlacing.addListener(() => {
+                mazeGame.setPlaced(true);
+                hud.setPlaced(true);
+            });
+        }
+        if (node.placementMode && typeof node.placementMode.addListener === 'function') {
+            node.placementMode.addListener((isPlacing: boolean) => {
+                mazeGame.setPlaced(!isPlacing);
+                hud.setPlaced(!isPlacing);
+            });
+            mazeGame.setPlaced(!node.placementMode.value);
+            hud.setPlaced(!node.placementMode.value);
+        }
+        break;
+    }
+}
+
+// Fallback for non-placement environments: activate game on launch
+if (!hasPlacementAnchor && launchButtonEl) {
+    launchButtonEl.addEventListener('click', () => {
+        mazeGame.setPlaced(true);
+        hud.setPlaced(true);
+    });
+}
+
 // 7. Game render loop
 let lastTime = performance.now();
 let hudTimer = 0;
@@ -179,9 +232,9 @@ function loop(now: number) {
     if (hudTimer >= 0.25) {
         hudTimer = 0;
         const prog = gameManager.getProgression();
-        const walls = mazeGame.getLoadedCollidersCount();
         const elapsed = mazeGame.getElapsedTime();
-        hud.updateStatus(prog.collected, prog.total, elapsed, walls);
+        hud.updateStatus(prog.collected, prog.total, elapsed);
+        hud.setRestartVisible(mazeGame.canRestart());
     }
 
     requestAnimationFrame(loop);

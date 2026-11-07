@@ -32,16 +32,21 @@ export class GameHUD {
 
     // #region DOM ELEMENTS
     private container: HTMLElement | null = null;
+    private topBar: HTMLElement | null = null;
     private counterPill: HTMLElement | null = null;
+    private restartBtn: HTMLButtonElement | null = null;
     private alertBanner: HTMLElement | null = null;
     private failVignette: HTMLElement | null = null;
-    private bottomControls: HTMLElement | null = null;
     private hideBannerTimer: any = null;
+    private isLaunched: boolean = false;
+    private isPlaced: boolean = false;
+    private isRestartAllowed: boolean = false;
     // #endregion
 
-    // Callbacks for action buttons
+    // Callbacks for action buttons & placement
     public onRestartClicked?: () => void;
     public onResetAllClicked?: () => void;
+    public onPlacementChanged?: (placed: boolean) => void;
 
     constructor() {
         if (typeof document !== 'undefined') {
@@ -65,38 +70,105 @@ export class GameHUD {
         this.failVignette.style.opacity = '0';
         this.failVignette.style.transition = 'opacity 0.3s ease';
         this.failVignette.style.boxShadow = 'inset 0 0 65px 25px rgba(239, 68, 68, 0.8)';
+        this.failVignette.style.transform = 'translate3d(0, 0, 0)';
+        (this.failVignette.style as any).webkitTransform = 'translate3d(0, 0, 0)';
         document.body.appendChild(this.failVignette);
 
         // 2. Top Header Container
         this.container = document.createElement('div');
         this.container.id = 'game-hud';
         this.container.style.position = 'fixed';
-        this.container.style.top = '44px'; // Clears iOS Dynamic Island & notch
+        this.container.style.top = '46px'; // Clears iOS Dynamic Island & notch
         this.container.style.left = '50%';
-        this.container.style.transform = 'translateX(-50%)';
+        this.container.style.transform = 'translate3d(-50%, 0, 0)';
+        (this.container.style as any).webkitTransform = 'translate3d(-50%, 0, 0)';
         this.container.style.zIndex = '999999';
-        this.container.style.display = 'flex';
+        this.container.style.display = 'none'; // Hidden until [Launch] is tapped!
         this.container.style.flexDirection = 'column';
         this.container.style.alignItems = 'center';
         this.container.style.pointerEvents = 'none';
         this.container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-        this.container.style.width = '92%';
+        this.container.style.width = '94%';
         this.container.style.maxWidth = '460px';
 
-        // 3. Status Pill with Highlighted Badges
+        // 3. Top Row: Status Pill (Items + Time) & Top-Right Cog Restart Button
+        this.topBar = document.createElement('div');
+        this.topBar.id = 'hud-top-bar';
+        this.topBar.style.display = 'flex';
+        this.topBar.style.alignItems = 'center';
+        this.topBar.style.justifyContent = 'center';
+        this.topBar.style.width = '100%';
+        this.topBar.style.gap = '8px';
+        this.topBar.style.pointerEvents = 'none';
+
         this.counterPill = document.createElement('div');
         this.counterPill.id = 'hud-counter';
+        this.counterPill.style.display = 'none'; // Hidden until maze is placed in room!
+        this.counterPill.style.margin = '0 auto';
         this.counterPill.style.background = this.colors.pillBg;
         this.counterPill.style.border = this.colors.pillBorder;
         this.counterPill.style.borderRadius = '24px';
-        this.counterPill.style.padding = '8px 18px';
+        this.counterPill.style.padding = '8px 14px';
         this.counterPill.style.fontSize = '13px';
         this.counterPill.style.fontWeight = 'bold';
+        this.counterPill.style.lineHeight = '1.2';
+        this.counterPill.style.whiteSpace = 'nowrap';
         this.counterPill.style.boxShadow = '0 6px 20px rgba(0,0,0,0.6)';
         this.counterPill.style.textAlign = 'center';
         (this.counterPill.style as any).backdropFilter = 'blur(10px)';
         (this.counterPill.style as any).webkitBackdropFilter = 'blur(10px)';
-        this.container.appendChild(this.counterPill);
+        this.topBar.appendChild(this.counterPill);
+
+        // Top-Right Restart Button with Small Cog Icon (inside proven top #game-hud!)
+        this.restartBtn = document.createElement('button');
+        this.restartBtn.type = 'button';
+        this.restartBtn.id = 'hud-restart-btn';
+        this.restartBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Restart</span>
+        `;
+        this.restartBtn.style.display = 'none'; // Hidden until trial starts or item collected!
+        this.restartBtn.style.alignItems = 'center';
+        this.restartBtn.style.justifyContent = 'center';
+        this.restartBtn.style.gap = '5px';
+        this.restartBtn.style.flexShrink = '0';
+        this.restartBtn.style.whiteSpace = 'nowrap';
+        this.restartBtn.style.pointerEvents = 'auto';
+        this.restartBtn.style.touchAction = 'manipulation';
+        this.restartBtn.style.background = this.colors.pillBg;
+        this.restartBtn.style.color = '#38bdf8';
+        this.restartBtn.style.border = `1.5px solid ${this.colors.restartBtnBorder}`;
+        this.restartBtn.style.borderRadius = '24px';
+        this.restartBtn.style.padding = '8px 12px';
+        this.restartBtn.style.fontSize = '13px';
+        this.restartBtn.style.fontWeight = 'bold';
+        this.restartBtn.style.lineHeight = '1.2';
+        this.restartBtn.style.boxShadow = '0 6px 20px rgba(0,0,0,0.6)';
+        this.restartBtn.style.cursor = 'pointer';
+        this.restartBtn.style.outline = 'none';
+        (this.restartBtn.style as any).webkitTapHighlightColor = 'transparent';
+        (this.restartBtn.style as any).backdropFilter = 'blur(10px)';
+        (this.restartBtn.style as any).webkitBackdropFilter = 'blur(10px)';
+        this.restartBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        this.restartBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.setVignetteVisible(false);
+            this.onRestartClicked?.();
+        });
+        this.restartBtn.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            if (this.restartBtn) this.restartBtn.style.transform = 'scale(0.94)';
+        }, { passive: true });
+        this.restartBtn.addEventListener('touchend', (e) => {
+            e.stopPropagation();
+            if (this.restartBtn) this.restartBtn.style.transform = 'scale(1.0)';
+        }, { passive: true });
+        this.topBar.appendChild(this.restartBtn);
+
+        this.container.appendChild(this.topBar);
 
         // 4. Alert Banner with Glowing Border
         this.alertBanner = document.createElement('div');
@@ -116,83 +188,147 @@ export class GameHUD {
 
         document.body.appendChild(this.container);
 
-        // 5. Bottom Action Controls (Restart & Reset Quest)
-        this.buildBottomControls();
+        // 5. Auto-detect placement state
+        this.setupPlacementObserver();
     }
 
-    private buildBottomControls(): void {
-        this.bottomControls = document.createElement('div');
-        this.bottomControls.id = 'hud-bottom-controls';
-        this.bottomControls.style.position = 'fixed';
-        this.bottomControls.style.bottom = '24px';
-        this.bottomControls.style.left = '50%';
-        this.bottomControls.style.transform = 'translateX(-50%)';
-        this.bottomControls.style.zIndex = '999999';
-        this.bottomControls.style.display = 'flex';
-        this.bottomControls.style.gap = '14px';
-        this.bottomControls.style.pointerEvents = 'auto';
-        this.bottomControls.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    /**
+     * Ensures HUD elements stay at the very end of `document.body` (strictly AFTER WebGL `<canvas>`
+     * and `#zcomponent-overlay`) so touch events and GPU layering always work on iOS.
+     */
+    private ensureTopLayerOrder(): void {
+        if (typeof document === 'undefined' || !document.body || !this.container) return;
+        if (document.body.lastElementChild !== this.container) {
+            if (this.failVignette) document.body.appendChild(this.failVignette);
+            document.body.appendChild(this.container);
+        }
+    }
 
-        // Button A: Restart Current Trial
-        const restartBtn = document.createElement('button');
-        restartBtn.innerText = '🔄 Restart Trial';
-        restartBtn.style.background = this.colors.pillBg;
-        restartBtn.style.color = '#38bdf8';
-        restartBtn.style.border = `1.5px solid ${this.colors.restartBtnBorder}`;
-        restartBtn.style.borderRadius = '24px';
-        restartBtn.style.padding = '11px 20px';
-        restartBtn.style.fontSize = '14px';
-        restartBtn.style.fontWeight = 'bold';
-        restartBtn.style.boxShadow = '0 6px 18px rgba(0,0,0,0.6)';
-        restartBtn.style.cursor = 'pointer';
-        restartBtn.style.outline = 'none';
-        (restartBtn.style as any).backdropFilter = 'blur(10px)';
-        (restartBtn.style as any).webkitBackdropFilter = 'blur(10px)';
-        restartBtn.onclick = () => {
-            this.setVignetteVisible(false);
-            this.onRestartClicked?.();
-        };
+    private setupPlacementObserver(): void {
+        const updateVisibility = () => {
+            // Auto-detect if app has been launched from splash screen
+            if (!this.isLaunched) {
+                const splash = document.querySelector('.splash') as HTMLElement;
+                const isSplashHidden = !splash || splash.style.display === 'none' || window.getComputedStyle(splash).display === 'none';
+                const hasLaunchedClass = document.body.classList.contains('zcomponent-launched');
+                if (isSplashHidden || hasLaunchedClass) {
+                    this.onLaunched();
+                } else {
+                    return; // Still on splash screen, stay completely hidden!
+                }
+            }
 
-        // Button B: Reset Entire Quest
-        const resetAllBtn = document.createElement('button');
-        resetAllBtn.innerText = '⚙️ Reset Quest';
-        resetAllBtn.style.background = this.colors.pillBg;
-        resetAllBtn.style.color = '#fda4af';
-        resetAllBtn.style.border = `1.5px solid ${this.colors.resetBtnBorder}`;
-        resetAllBtn.style.borderRadius = '24px';
-        resetAllBtn.style.padding = '11px 20px';
-        resetAllBtn.style.fontSize = '14px';
-        resetAllBtn.style.fontWeight = 'bold';
-        resetAllBtn.style.boxShadow = '0 6px 18px rgba(0,0,0,0.6)';
-        resetAllBtn.style.cursor = 'pointer';
-        resetAllBtn.style.outline = 'none';
-        (resetAllBtn.style as any).backdropFilter = 'blur(10px)';
-        (resetAllBtn.style as any).webkitBackdropFilter = 'blur(10px)';
-        resetAllBtn.onclick = () => {
-            const confirmed = window.confirm('Reset ALL quest progress back to 0/10 special items?');
-            if (confirmed) {
-                this.setVignetteVisible(false);
-                this.onResetAllClicked?.();
+            this.ensureTopLayerOrder();
+
+            // Check if Zapworks "Place" checkmark button (center) is visible on screen
+            const placeCenterUI = document.querySelector('.zcomponent-zappar-three-place-ui-horizontal-center');
+            const isPlacing = !!(placeCenterUI && window.getComputedStyle(placeCenterUI).display !== 'none');
+
+            if (isPlacing) {
+                if (this.isPlaced) {
+                    this.setPlaced(false);
+                }
+                return;
+            }
+
+            // Check if Zapworks "Restart Placement" (re-place maze) button is on screen (bottom-left)
+            const restartPlacementUI = document.querySelector('.zcomponent-zappar-three-place-ui-horizontal-left');
+            const hasPlaced = !!restartPlacementUI;
+
+            if (hasPlaced && !this.isPlaced) {
+                this.setPlaced(true);
             }
         };
 
-        // Tactile touch reactions for mobile
-        [restartBtn, resetAllBtn].forEach(btn => {
-            btn.addEventListener('touchstart', () => { btn.style.transform = 'scale(0.94)'; });
-            btn.addEventListener('touchend', () => { btn.style.transform = 'scale(1.0)'; });
-        });
+        if (typeof MutationObserver !== 'undefined' && document.body) {
+            const observer = new MutationObserver(updateVisibility);
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+        setInterval(updateVisibility, 250);
+    }
 
-        this.bottomControls.appendChild(restartBtn);
-        this.bottomControls.appendChild(resetAllBtn);
-        document.body.appendChild(this.bottomControls);
+    /**
+     * Called when the user clicks [Launch] on the splash screen.
+     */
+    public onLaunched(): void {
+        this.isLaunched = true;
+        this.ensureTopLayerOrder();
+        if (this.container) {
+            this.container.style.display = 'flex';
+        }
+        if (!this.isPlaced) {
+            if (this.counterPill) this.counterPill.style.display = 'none';
+            this.notify('🎯 Aim at floor down the hall and tap ✓ to place maze', 'info');
+        } else {
+            if (this.counterPill) this.counterPill.style.display = 'block';
+        }
+        this.refreshRestartButton();
+    }
+
+    /**
+     * Updates visibility once the maze has been placed or when re-entering placement mode.
+     */
+    public setPlaced(placed: boolean): void {
+        const changed = this.isPlaced !== placed;
+        this.isPlaced = placed;
+        if (!placed) {
+            this.isRestartAllowed = false;
+            this.setVignetteVisible(false);
+        }
+
+        if (!this.isLaunched) {
+            if (this.container) this.container.style.display = 'none';
+            if (this.counterPill) this.counterPill.style.display = 'none';
+            if (this.restartBtn) this.restartBtn.style.display = 'none';
+            return;
+        }
+
+        this.ensureTopLayerOrder();
+
+        if (this.container) {
+            this.container.style.display = 'flex';
+        }
+
+        if (placed) {
+            if (this.counterPill) this.counterPill.style.display = 'block';
+        } else {
+            if (this.counterPill) this.counterPill.style.display = 'none';
+            this.notify('🎯 Aim at floor down the hall and tap ✓ to place maze', 'info');
+        }
+
+        if (changed) {
+            this.onPlacementChanged?.(placed);
+        }
+
+        this.refreshRestartButton();
+    }
+
+    /**
+     * Controls whether the [⚙️ Restart] button is allowed to show (once trial started or item collected).
+     */
+    public setRestartVisible(visible: boolean): void {
+        this.isRestartAllowed = visible;
+        this.refreshRestartButton();
+    }
+
+    private refreshRestartButton(): void {
+        if (!this.restartBtn) return;
+        const shouldShow = this.isLaunched && this.isPlaced && this.isRestartAllowed;
+        const targetDisplay = shouldShow ? 'inline-flex' : 'none';
+        if (this.restartBtn.style.display !== targetDisplay) {
+            this.restartBtn.style.display = targetDisplay;
+        }
     }
     // #endregion
 
     // #region PUBLIC UPDATE METHODS
     /**
-     * Updates top status pill with highlighted badges for Items, Timer, and Walls.
+     * Updates top status pill with highlighted badges for Items and Timer (Walls removed).
      */
-    public updateStatus(collected: number, total: number, elapsedSeconds: number, wallsCount: number): void {
+    public updateStatus(collected: number, total: number, elapsedSeconds: number, _wallsCount?: number): void {
+        if (elapsedSeconds > 0 && !this.isRestartAllowed) {
+            this.setRestartVisible(true);
+        }
         if (!this.counterPill) return;
 
         const mins = Math.floor(elapsedSeconds / 60);
@@ -205,8 +341,6 @@ export class GameHUD {
             <span style="color: ${this.colors.itemBadgeColor};">🔮 Items: <b>${collected} / ${total}</b></span>
             <span style="color: rgba(255,255,255,0.4); margin: 0 8px;">|</span>
             <span style="color: ${this.colors.timerBadgeColor};">⏱️ <b>${timeStr}</b></span>
-            <span style="color: rgba(255,255,255,0.4); margin: 0 8px;">|</span>
-            <span style="color: ${this.colors.wallBadgeColor};">🛡️ Walls: <b>${wallsCount}</b></span>
         `;
     }
 

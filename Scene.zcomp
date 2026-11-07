@@ -64,6 +64,9 @@
 		"StartPad": {
 			"a3edba89668642ff9de207484ca2395d": true
 		},
+		"UserPlacementAnchorGroup": {
+			"74e22589ff25426c9dba5990ade3a754": true
+		},
 		"WorldTracker": {
 			"79f854d5bb6b4a0b84ba0a71efacb9cc": true
 		},
@@ -141,6 +144,9 @@
 		"StartPad": {
 			"a3edba89668642ff9de207484ca2395d": true
 		},
+		"UserPlacementAnchorGroup": {
+			"74e22589ff25426c9dba5990ade3a754": true
+		},
 		"WorldTracker": {
 			"79f854d5bb6b4a0b84ba0a71efacb9cc": true
 		},
@@ -175,6 +181,9 @@
 		"61e95a6f823a4dce9c865e93216bfac8": {
 		},
 		"646c65b3ea974f3abd78f6ef9eff6696": {
+		},
+		"74e22589ff25426c9dba5990ade3a754": {
+			"startInPlacementMode": true
 		},
 		"77091578433c472cba3958ae39d672f2": {
 		},
@@ -270,7 +279,7 @@
 			"position": [
 				0,
 				0,
-				1
+				10
 			],
 			"scale": [
 				1,
@@ -285,16 +294,27 @@
 		"52148d8eafe3426085e700e049662c07": {
 		},
 		"61e95a6f823a4dce9c865e93216bfac8": {
+			"position": [
+				0,
+				0,
+				10
+			]
 		},
 		"646c65b3ea974f3abd78f6ef9eff6696": {
+		},
+		"74e22589ff25426c9dba5990ade3a754": {
+			"placeOnGround": true
 		},
 		"77091578433c472cba3958ae39d672f2": {
 		},
 		"79f854d5bb6b4a0b84ba0a71efacb9cc": {
+			"resetAfterLimitedFor": 5000
 		},
 		"7b6fb4d895774174b5d151eec86b704c": {
 		},
 		"7cbeb4f4351046cca1dfb5003bebc0f7": {
+			"readyWhenInitializing": true,
+			"visible": true,
 			"visibleWhenInitializing": false,
 			"visibleWhenPaused": true,
 			"visibleWhenStopped": false
@@ -314,7 +334,7 @@
 			"position": [
 				0,
 				0,
-				-12
+				-2
 			],
 			"receiveShadow": false
 		},
@@ -324,14 +344,14 @@
 			"position": [
 				0,
 				0,
-				-12
+				-2
 			]
 		},
 		"bc397bd47e99481db6243d80577a087f": {
 			"position": [
 				0,
 				0,
-				-10
+				-0.5
 			]
 		},
 		"bf1d127bf7234511b3cdc3d5a98af7b0": {
@@ -342,7 +362,7 @@
 			"position": [
 				0,
 				0,
-				-15
+				-4
 			],
 			"rotation": [
 				0,
@@ -356,7 +376,7 @@
 			"position": [
 				0,
 				0,
-				1
+				10
 			]
 		},
 		"ed11c67097044892b68a40f0856e6f50": {
@@ -438,6 +458,16 @@
 			},
 			"scriptName": "Game_6_Placeholder_",
 			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"74e22589ff25426c9dba5990ade3a754": {
+			"id": "74e22589ff25426c9dba5990ade3a754",
+			"label": "UserPlacementAnchorGroup",
+			"parent": {
+				"id": "79f854d5bb6b4a0b84ba0a71efacb9cc",
+				"order": "a1"
+			},
+			"scriptName": "UserPlacementAnchorGroup",
+			"type": "@zcomponent/zappar-three/lib/components/anchorgroups/UserPlacementAnchorGroup#UserPlacementAnchorGroup"
 		},
 		"77091578433c472cba3958ae39d672f2": {
 			"id": "77091578433c472cba3958ae39d672f2",
@@ -564,8 +594,8 @@
 			"id": "c9a0465d592d4e3181ffd1f812d35510",
 			"label": "Game_1_Maze",
 			"parent": {
-				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
-				"order": "Zz"
+				"id": "74e22589ff25426c9dba5990ade3a754",
+				"order": "a0"
 			},
 			"scriptName": "Game_1_Maze",
 			"type": "@zcomponent/three/lib/components/Group#Group"

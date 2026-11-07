@@ -100,6 +100,11 @@
 					transform: rotate(360deg);
 				}
 			}
+
+			/* Auto-hide bottom buttons whenever Zapworks Place checkmark button is on screen */
+			body:has(.zcomponent-zappar-three-place-ui) #hud-bottom-controls {
+				display: none !important;
+			}
 		</style>
 	</head>
 	<body>

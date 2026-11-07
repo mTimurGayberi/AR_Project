@@ -55,6 +55,9 @@ export class MazeGame extends BaseMiniGame {
     // #endregion
 
     // #region GAME STATE
+    public isPlaced: boolean = false;
+    public onRestartAvailabilityChanged?: (canRestart: boolean) => void;
+    private lastCanRestartState: boolean = false;
     private isCollidingWithWall: boolean = false;
     private wallCollisionTimer: number = 0;
     private isWaitingForPhysicalReturn: boolean = false;
@@ -145,6 +148,7 @@ export class MazeGame extends BaseMiniGame {
             emissiveIntensity: 0.6
         });
         this.playerMesh = new THREE.Mesh(geo, this.playerMaterial);
+        this.playerMesh.visible = false; // Hidden until maze is placed in room
         this.playerSphere.radius = radius;
         this.container.add(this.playerMesh);
     }
@@ -241,14 +245,60 @@ export class MazeGame extends BaseMiniGame {
     // #endregion
 
     // #region LIFECYCLE & RESET
+    /**
+     * Returns true only when the maze is placed AND either:
+     * - the player has stepped into the Start Area to start the trial (including wall-penalty retry), OR
+     * - the player has collected the item / met the win condition.
+     * Returns false while waiting for the player to walk into the Start Area initially.
+     */
+    public canRestart(): boolean {
+        if (!this.isPlaced) return false;
+        if (this.isTrialWon || this.isCompleted || this.collectible.isItemCollected()) {
+            return true;
+        }
+        return !this.isWaitingToStart || this.isWaitingForPhysicalReturn;
+    }
+
+    private syncRestartAvailability(force: boolean = false): void {
+        const current = this.canRestart();
+        if (force || current !== this.lastCanRestartState) {
+            this.lastCanRestartState = current;
+            this.onRestartAvailabilityChanged?.(current);
+        }
+    }
+
+    /**
+     * Updates placement status. When placed, activates avatar and trial.
+     */
+    public setPlaced(placed: boolean): void {
+        if (this.isPlaced === placed) return;
+        this.isPlaced = placed;
+        if (this.playerMesh) {
+            this.playerMesh.visible = placed;
+        }
+        if (placed) {
+            this.restartTrial();
+        } else {
+            this.stopTimer();
+            this.isWaitingForPhysicalReturn = false;
+            this.isWaitingToStart = true;
+            this.startZone.setVisible(true);
+            this.syncRestartAvailability(true);
+        }
+    }
+
     public override start(): void {
         this.isActive = true;
         this.isCompleted = false;
         this.isTrialWon = false;
+        this.isWaitingForPhysicalReturn = false;
         this.isWaitingToStart = true;
         this.stopTimer(); // Paused until player steps into the green start zone
         this.startZone.setVisible(true);
-        this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
+        this.syncRestartAvailability(true);
+        if (this.isPlaced) {
+            this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
+        }
     }
 
     public override reset(): void {
@@ -262,6 +312,7 @@ export class MazeGame extends BaseMiniGame {
         this.stopTimer();
         this.startZone.setVisible(true);
         this.collectible.reset();
+        this.syncRestartAvailability(true);
         this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
     }
 
@@ -292,6 +343,15 @@ export class MazeGame extends BaseMiniGame {
         this.stopTimer();
         this.collectible.reset();
 
+        if (this.camera && !this.isUsingKeyboard) {
+            this.container.updateMatrixWorld(true);
+            this.camera.getWorldPosition(this.tempWorldPos);
+            this.tempLocalPos.copy(this.tempWorldPos);
+            this.container.worldToLocal(this.tempLocalPos);
+            this.playerMesh.position.set(this.tempLocalPos.x, 0.05, this.tempLocalPos.z);
+            this.playerSphere.center.set(this.tempLocalPos.x, 0.5, this.tempLocalPos.z);
+        }
+
         const check = this.startZone.checkPlayer(this.playerMesh.position);
         if (check.isInside) {
             // Player is already standing inside the start area!
@@ -309,6 +369,7 @@ export class MazeGame extends BaseMiniGame {
             this.setPlayerVisualState('normal');
             this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
         }
+        this.syncRestartAvailability(true);
     }
 
     public override notify(message: string, type: import('./BaseMiniGame').NotificationType = 'info'): void {
@@ -318,6 +379,11 @@ export class MazeGame extends BaseMiniGame {
 
     // #region MAIN GAME LOOP
     protected onUpdate(deltaTime: number): void {
+        // Only run game logic and collisions once the maze has been placed in physical space
+        if (!this.isPlaced) {
+            return;
+        }
+
         // Asynchronous GLTF scan retry if models take a moment to load
         if (this.customWallMeshes.length === 0 && this.rawWallsNode) {
             this.lastMeshScanTime += deltaTime;
@@ -369,6 +435,7 @@ export class MazeGame extends BaseMiniGame {
                     this.resetTimer();
                     this.startTimer();
                     this.setPlayerVisualState('normal');
+                    this.syncRestartAvailability();
                     this.notify('✅ Back at Start Area! Trial restarted. GO!', 'success');
                     if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
                         try { (navigator as any).vibrate(150); } catch (e) {}
@@ -382,6 +449,7 @@ export class MazeGame extends BaseMiniGame {
                     this.resetTimer();
                     this.startTimer();
                     this.setPlayerVisualState('normal');
+                    this.syncRestartAvailability();
                     this.notify('🚀 Entered Start Area! Trial started. GO!', 'success');
                     if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
                         try { (navigator as any).vibrate(120); } catch (e) {}
@@ -442,6 +510,7 @@ export class MazeGame extends BaseMiniGame {
                     this.stopTimer(); // Halt trial timer on failure!
                     this.startZone.setVisible(true); // Reappears as glowing green ground area!
                     this.setPlayerVisualState('warning');
+                    this.syncRestartAvailability();
                     this.notify('⛔ TRIAL FAILED: Hit Wall! Walk back to green Start Area to retry.', 'error');
                     if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
                         try { (navigator as any).vibrate([250, 100, 250]); } catch (e) {}
@@ -480,6 +549,7 @@ export class MazeGame extends BaseMiniGame {
 
         // Keep isActive = true so Three.js camera tracking continues to move the player knob!
         this.isActive = true;
+        this.syncRestartAvailability(true);
 
         this.notify('🎉 VICTORY! You collected the Wind Gem! [1/10]', 'success');
     }
