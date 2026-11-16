@@ -111,6 +111,11 @@ declare class Comp extends ZComponent {
 
 			}
 		},
+		Props: Group_0 & {
+			behaviors: {
+
+			}
+		},
 		ShadowPlane: ShadowPlane_6 & {
 			behaviors: {
 
@@ -136,7 +141,22 @@ declare class Comp extends ZComponent {
 
 			}
 		},
+		bamboo_glb: GLTF_7 & {
+			behaviors: {
+
+			}
+		},
 		flag: GLTF_7 & {
+			behaviors: {
+
+			}
+		},
+		flag_2_glb: GLTF_7 & {
+			behaviors: {
+
+			}
+		},
+		flag_glb: GLTF_7 & {
 			behaviors: {
 
 			}
@@ -151,7 +171,17 @@ declare class Comp extends ZComponent {
 
 			}
 		},
-		mazeWalls_glb: GLTF_7 & {
+		orb_glb: GLTF_7 & {
+			behaviors: {
+
+			}
+		},
+		rocks1_glb: GLTF_7 & {
+			behaviors: {
+
+			}
+		},
+		MazeWalls: GLTF_7 & {
 			behaviors: {
 
 			}

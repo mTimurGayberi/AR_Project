@@ -3,46 +3,70 @@ import { initialize, useScene, useCamera } from "@zcomponent/three";
 import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/GameManager";
 import { MazeGame } from "./src/MazeGame";
+import { SimonGame } from "./src/SimonGame";
 import { GameHUD } from "./src/ui/GameHUD";
+import { soundManager } from "./src/SoundManager";
 
 console.log("=== SENSEI AR 10 MINI-GAMES SYSTEM ===");
 
 // 1. Create GameHUD and hook up touch callbacks
 const hud = new GameHUD();
 
-// 2. Create and register Mini-Game #1 (Maze)
+// 2. Create and register Mini-Game #1 (Maze) & Mini-Game #2 (Simon)
 const mazeGame = new MazeGame({
     wallGracePeriod: 2.0,    // Seconds warning before penalty reset
     collisionDistance: 0.25,  // Proximity threshold in meters (0.25m = ~10 inches)
     moveSpeed: 3.0           // Keyboard dev simulation speed
 });
 
-gameManager.registerGame(mazeGame);
-gameManager.setActiveGame(mazeGame.id);
+const simonGame = new SimonGame({
+    totalRounds: 3,
+    startingSequenceLength: 3, // Round 1 = 3 flashes, Round 2 = 4, Round 3 = 5
+    panelDistanceZ: -1.6,      // 1.6m in front of placement anchor
+    panelHeightY: 1.15         // Chest/eye height
+});
 
-// Connect notifications & restart button availability from mazeGame to HUD
+gameManager.registerGame(mazeGame);
+gameManager.registerGame(simonGame);
+// Do not activate any game at startup — all game folders stay hidden until the user selects a game!
+
+type ActivePlayableGame = MazeGame | SimonGame;
+const getCurrentPlayableGame = (): ActivePlayableGame | null => {
+    return (gameManager.getActiveGame() as ActivePlayableGame) || null;
+};
+
+// Connect notifications & restart button availability from both games to HUD
 mazeGame.onNotification = (message, type) => {
-    hud.notify(message, type);
+    if (gameManager.getActiveGame() === mazeGame) hud.notify(message, type);
+};
+simonGame.onNotification = (message, type) => {
+    if (gameManager.getActiveGame() === simonGame) hud.notify(message, type);
 };
 
 mazeGame.onRestartAvailabilityChanged = (canRestart) => {
-    hud.setRestartVisible(canRestart);
+    if (gameManager.getActiveGame() === mazeGame) hud.setRestartVisible(canRestart);
+};
+simonGame.onRestartAvailabilityChanged = (canRestart) => {
+    if (gameManager.getActiveGame() === simonGame) hud.setRestartVisible(canRestart);
 };
 
-// Connect HUD touch button callbacks to game
+// Connect HUD touch button callbacks to active game
 hud.onRestartClicked = () => {
-    mazeGame.restartTrial();
+    getCurrentPlayableGame()?.restartTrial();
 };
 
 hud.onPlacementChanged = (placed) => {
     mazeGame.setPlaced(placed);
+    simonGame.setPlaced(placed);
 };
 
 hud.onResetAllClicked = () => {
     gameManager.resetAllProgress();
-    gameManager.setActiveGame(mazeGame.id);
-    mazeGame.restartTrial();
-    mazeGame.onNotification?.('🧹 Quest reset! 0/10 items collected.', 'info');
+    const active = getCurrentPlayableGame();
+    if (active) {
+        active.restartTrial();
+        active.onNotification?.('🧹 Quest reset! 0/10 items collected.', 'info');
+    }
 };
 
 // 3. Initialize Mattercraft 3D Scene
@@ -53,6 +77,7 @@ const result = initialize(Scene, {}, {
 
 if (launchButtonEl) {
     launchButtonEl.addEventListener('click', () => {
+        soundManager.unlockAndPreload();
         hud.onLaunched();
     });
 }
@@ -60,36 +85,100 @@ if (launchButtonEl) {
 const instance = result.rootInstance;
 const threeScene = useScene(result.contextManager);
 
-// 4. Link active AR camera for 6-DOF physical walking
+// 4. Link active AR camera for 6-DOF physical walking & 3D button raycasting
 const cameraObservable = useCamera(result.contextManager);
 if (cameraObservable.value) {
     mazeGame.setCamera(cameraObservable.value);
+    simonGame.setCamera(cameraObservable.value);
 }
 cameraObservable.addListener((activeCam) => {
     mazeGame.setCamera(activeCam);
+    simonGame.setCamera(activeCam);
 });
 
-// 5. Anchor Maze directly to Game_1_Maze container
-const game1Container = (instance?.nodes as any)?.Game_1_Maze?.element
-                    || (instance?.nodes as any)?.['Game_1_Maze']?.element
-                    || (instance?.nodes as any)?.Ground_Anchor?.element
-                    || (instance?.nodes as any)?.UserPlacementAnchorGroup?.element
-                    || (instance?.nodes as any)?.WorldTracker?.element
-                    || threeScene;
+// 5. Anchor Game 1 (Maze) & Game 2 (Simon) inside UserPlacementAnchorGroup's moving _innerGroup!
+const sceneNodes = (instance?.nodes as any) || {};
+
+const placementAnchorNode = sceneNodes.UserPlacementAnchorGroup || sceneNodes['UserPlacementAnchorGroup'];
+const game1Node = sceneNodes.Game_1_Maze || sceneNodes['Game_1_Maze'];
+
+// IMPORTANT: In UserPlacementAnchorGroup, `.element` is a static outer wrapper at (0,0,0),
+// whereas `._innerGroup` / `._parentForChildren` (which is `game1Node.element.parent`) is the
+// actual moving group that slides across the floor during placement!
+const placementInnerGroup = placementAnchorNode?._innerGroup
+                         || placementAnchorNode?._parentForChildren
+                         || game1Node?.element?.parent
+                         || placementAnchorNode?.element
+                         || sceneNodes.Ground_Anchor?.element
+                         || sceneNodes.WorldTracker?.element
+                         || threeScene;
+
+const game1Container = game1Node?.element || placementInnerGroup;
+
+const game2Node = sceneNodes.Game_2_Placeholder || sceneNodes['Game_2_[Placeholder]'] || sceneNodes.Game_2;
+
+// Helper to toggle both Mattercraft ZComponent visibility and Three.js Object3D visibility
+const setFolderVisible = (zNode: any, visible: boolean) => {
+    if (!zNode) return;
+    if (zNode.visible && typeof zNode.visible === 'object' && 'value' in zNode.visible) {
+        zNode.visible.value = visible;
+    } else if (typeof zNode.visible === 'boolean') {
+        zNode.visible = visible;
+    }
+    if (zNode.element) {
+        zNode.element.visible = visible;
+    }
+};
 
 mazeGame.init(game1Container);
+simonGame.init(placementInnerGroup);
 
-// Hide placeholders for future games (Game 2 to 10)
+// Hide ALL 10 game folders at startup for maximum GPU optimization until user selects a game!
+setFolderVisible(game1Node, false);
+mazeGame.container.visible = false;
+simonGame.container.visible = false;
+
 for (let i = 2; i <= 10; i++) {
-    const placeholder = (instance?.nodes as any)?.[`Game_${i}_[Placeholder]`]?.element
-                     || (instance?.nodes as any)?.[`Game_${i}`]?.element;
-    if (placeholder) {
-        placeholder.visible = false;
-    }
+    const placeholderNode = sceneNodes[`Game_${i}_[Placeholder]`]
+                         || sceneNodes[`Game_${i}_Placeholder`]
+                         || sceneNodes[`Game_${i}_Placeholder_`]
+                         || sceneNodes[`Game_${i}`];
+    setFolderVisible(placeholderNode, false);
 }
 
+// Switch between Game 1 (Maze) and Game 2 (Simon) when selected in the HUD
+hud.onGameSelected = (gameNumber) => {
+    soundManager.stopAllLoops();
+
+    // Enter floor placement mode when selecting a game so the player can choose where to place it with ✓
+    if (placementAnchorNode?.placementMode && !placementAnchorNode.placementMode.value) {
+        placementAnchorNode.placementMode.value = true;
+    }
+
+    if (gameNumber === 1) {
+        // Turn OFF Game 2 and turn ON Game 1 folder
+        setFolderVisible(game2Node, false);
+        simonGame.container.visible = false;
+
+        setFolderVisible(game1Node, true);
+        mazeGame.container.visible = true;
+        gameManager.setActiveGame(mazeGame.id);
+        mazeGame.start();
+        hud.setRestartVisible(mazeGame.canRestart());
+    } else {
+        // Turn OFF Game 1 (Maze folder) and turn ON Game 2
+        setFolderVisible(game1Node, false);
+        mazeGame.container.visible = false;
+
+        setFolderVisible(game2Node, true);
+        simonGame.container.visible = true;
+        gameManager.setActiveGame(simonGame.id);
+        simonGame.start();
+        hud.setRestartVisible(simonGame.canRestart());
+    }
+};
+
 // 6. Automatically discover custom visual scene nodes from Mattercraft
-const sceneNodes = (instance?.nodes as any) || {};
 
 // Walls node
 let wallsGroup = sceneNodes['mazeWalls.glb']
@@ -168,16 +257,15 @@ if (!goalNode && threeScene) {
     });
 }
 
-// Bind custom nodes to MazeGame
+// Bind custom nodes to MazeGame (keep hidden until user selects Game 1 in HUD!)
 mazeGame.bindCustomSceneNodes({
     collidersGroup: wallsGroup,
     startPad: startPadNode,
     flag: flagNode,
     goalItem: goalNode
 });
-
-mazeGame.container.visible = true;
-mazeGame.start();
+setFolderVisible(game1Node, false);
+mazeGame.container.visible = false;
 
 // 6.5 Sync placement state and game-started condition if UserPlacementAnchor exists in scene
 let hasPlacementAnchor = false;
@@ -188,21 +276,25 @@ for (const key of Object.keys(sceneNodes)) {
         if (node.onPlacing && typeof node.onPlacing.addListener === 'function') {
             node.onPlacing.addListener(() => {
                 mazeGame.setPlaced(false);
+                simonGame.setPlaced(false);
                 hud.setPlaced(false);
             });
         }
         if (node.onNotPlacing && typeof node.onNotPlacing.addListener === 'function') {
             node.onNotPlacing.addListener(() => {
                 mazeGame.setPlaced(true);
+                simonGame.setPlaced(true);
                 hud.setPlaced(true);
             });
         }
         if (node.placementMode && typeof node.placementMode.addListener === 'function') {
             node.placementMode.addListener((isPlacing: boolean) => {
                 mazeGame.setPlaced(!isPlacing);
+                simonGame.setPlaced(!isPlacing);
                 hud.setPlaced(!isPlacing);
             });
             mazeGame.setPlaced(!node.placementMode.value);
+            simonGame.setPlaced(!node.placementMode.value);
             hud.setPlaced(!node.placementMode.value);
         }
         break;
@@ -213,6 +305,7 @@ for (const key of Object.keys(sceneNodes)) {
 if (!hasPlacementAnchor && launchButtonEl) {
     launchButtonEl.addEventListener('click', () => {
         mazeGame.setPlaced(true);
+        simonGame.setPlaced(true);
         hud.setPlaced(true);
     });
 }
@@ -232,9 +325,10 @@ function loop(now: number) {
     if (hudTimer >= 0.25) {
         hudTimer = 0;
         const prog = gameManager.getProgression();
-        const elapsed = mazeGame.getElapsedTime();
+        const activeGame = getCurrentPlayableGame();
+        const elapsed = activeGame ? activeGame.getElapsedTime() : 0;
         hud.updateStatus(prog.collected, prog.total, elapsed);
-        hud.setRestartVisible(mazeGame.canRestart());
+        hud.setRestartVisible(activeGame ? activeGame.canRestart() : false);
     }
 
     requestAnimationFrame(loop);

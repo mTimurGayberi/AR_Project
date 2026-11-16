@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseMiniGame } from './BaseMiniGame';
 import { StartZone } from './core/StartZone';
 import { CollectibleItem } from './core/CollectibleItem';
+import { soundManager } from './SoundManager';
 
 export interface MazeConfig {
     wallGracePeriod?: number;   // Duration in seconds (e.g. 2.0s) before penalty reset
@@ -95,7 +96,7 @@ export class MazeGame extends BaseMiniGame {
         this.collectible = new CollectibleItem('item_01_wind_gem', 'Wind Gem', {
             pickupRadius: 1.3,
             spinSpeedY: 1.8,
-            spinSpeedX: 0.5,
+            spinSpeedX: 0,
             enableFloating: true,
             floatAmplitude: 0.08
         });
@@ -276,10 +277,12 @@ export class MazeGame extends BaseMiniGame {
         if (this.playerMesh) {
             this.playerMesh.visible = placed;
         }
-        if (placed) {
+        if (placed && this.isActive && this.container.visible) {
             this.restartTrial();
         } else {
             this.stopTimer();
+            soundManager.stopAmbientMaze();
+            soundManager.stopOrbLoop();
             this.isWaitingForPhysicalReturn = false;
             this.isWaitingToStart = true;
             this.startZone.setVisible(true);
@@ -296,7 +299,8 @@ export class MazeGame extends BaseMiniGame {
         this.stopTimer(); // Paused until player steps into the green start zone
         this.startZone.setVisible(true);
         this.syncRestartAvailability(true);
-        if (this.isPlaced) {
+        if (this.isPlaced && this.container.visible) {
+            soundManager.startAmbientMaze();
             this.notify('🚩 Walk into the green Start Area around the flag to begin!', 'info');
         }
     }
@@ -352,6 +356,10 @@ export class MazeGame extends BaseMiniGame {
             this.playerSphere.center.set(this.tempLocalPos.x, 0.5, this.tempLocalPos.z);
         }
 
+        if (this.isPlaced && this.container.visible) {
+            soundManager.startAmbientMaze();
+        }
+
         const check = this.startZone.checkPlayer(this.playerMesh.position);
         if (check.isInside) {
             // Player is already standing inside the start area!
@@ -360,6 +368,7 @@ export class MazeGame extends BaseMiniGame {
             this.startZone.setVisible(false);
             this.startTimer();
             this.setPlayerVisualState('normal');
+            soundManager.playLevelStart();
             this.notify('🔄 Trial restarted! GO!', 'success');
         } else {
             // Outside start area, prompt to walk to the flag:
@@ -436,6 +445,7 @@ export class MazeGame extends BaseMiniGame {
                     this.startTimer();
                     this.setPlayerVisualState('normal');
                     this.syncRestartAvailability();
+                    soundManager.playLevelStart();
                     this.notify('✅ Back at Start Area! Trial restarted. GO!', 'success');
                     if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
                         try { (navigator as any).vibrate(150); } catch (e) {}
@@ -450,29 +460,41 @@ export class MazeGame extends BaseMiniGame {
                     this.startTimer();
                     this.setPlayerVisualState('normal');
                     this.syncRestartAvailability();
+                    soundManager.playLevelStart();
                     this.notify('🚀 Entered Start Area! Trial started. GO!', 'success');
                     if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
                         try { (navigator as any).vibrate(120); } catch (e) {}
                     }
+                } else {
+                    // Animate gem & allow direct pickup if player walks straight to the gem
+                    const collectedDirectly = this.collectible.update(deltaTime, this.playerMesh.position, this.playerMesh);
+                    if (collectedDirectly) {
+                        this.isWaitingToStart = false;
+                        this.startZone.setVisible(false);
+                        this.onWin();
+                    }
+                    return;
                 }
             }
-            return; // Outside the maze waiting to start, do not process wall collisions or collectible checks!
+            if (this.isWaitingToStart) {
+                this.collectible.animate(deltaTime);
+                return; // Waiting to return to start after wall penalty
+            }
         }
 
         // 3. Wall Collision Proximity Check (360-degree Raycasting)
         let touchingAnyWall = false;
 
         if (this.customWallMeshes.length > 0) {
-            const worldCenter = new THREE.Vector3();
-            this.playerMesh.getWorldPosition(worldCenter);
-            worldCenter.y += 0.8; // Waist height
+            this.playerMesh.getWorldPosition(this.tempWorldPos);
+            this.tempWorldPos.y += 0.8; // Waist height
 
             const checkDist = this.collisionDistance;
 
             for (const dir of this.rayDirections) {
-                this.raycaster.set(worldCenter, dir);
+                this.raycaster.set(this.tempWorldPos, dir);
                 this.raycaster.far = checkDist;
-                const hits = this.raycaster.intersectObjects(this.customWallMeshes, true);
+                const hits = this.raycaster.intersectObjects(this.customWallMeshes, false);
                 if (hits.length > 0 && hits[0].distance <= checkDist) {
                     touchingAnyWall = true;
                     break;
@@ -487,6 +509,7 @@ export class MazeGame extends BaseMiniGame {
                 this.wallCollisionTimer = 0;
                 this.graceNotifyTimer = 0;
                 this.setPlayerVisualState('warning');
+                soundManager.playWallCollision();
                 this.notify('⚠️ Warning: Wall contact! Step back immediately!', 'warning');
                 if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
                     try { (navigator as any).vibrate(100); } catch (e) {}
@@ -508,6 +531,8 @@ export class MazeGame extends BaseMiniGame {
                     this.wallCollisionTimer = 0;
                     this.graceNotifyTimer = 0;
                     this.stopTimer(); // Halt trial timer on failure!
+                    soundManager.stopOrbLoop();
+                    soundManager.playWallCollision();
                     this.startZone.setVisible(true); // Reappears as glowing green ground area!
                     this.setPlayerVisualState('warning');
                     this.syncRestartAvailability();
@@ -528,8 +553,8 @@ export class MazeGame extends BaseMiniGame {
             }
         }
 
-        // 4. Update Collectible (Gem Spinning & Proximity Pickup)
-        const collectedJustNow = this.collectible.update(deltaTime, this.playerMesh.position);
+        // 4. Update Collectible (Gem Spinning & World-Space Proximity Pickup)
+        const collectedJustNow = this.collectible.update(deltaTime, this.playerMesh.position, this.playerMesh);
         if (collectedJustNow) {
             this.onWin();
         }
@@ -540,6 +565,9 @@ export class MazeGame extends BaseMiniGame {
     public override onWin(): void {
         if (this.isTrialWon) return;
         this.isTrialWon = true;
+
+        soundManager.stopOrbLoop();
+        soundManager.playLevelFinish();
 
         if (typeof navigator !== 'undefined' && (navigator as any).vibrate) {
             try { (navigator as any).vibrate([150, 80, 200]); } catch (e) {}

@@ -58,6 +58,12 @@
 		"Group": {
 			"root": true
 		},
+		"MazeWalls": {
+			"ea8e5956f423438c83e5ccd34b66123c": true
+		},
+		"Props": {
+			"8883c06f10b94b3f9efea7c642c8f6ff": true
+		},
 		"ShadowPlane": {
 			"bf1d127bf7234511b3cdc3d5a98af7b0": true
 		},
@@ -73,8 +79,17 @@
 		"ZapparCamera": {
 			"ef58d7d572f244dd99ff82af20165930": true
 		},
+		"bamboo.glb": {
+			"6668e8502d9948b98b797ad56d687dd3": true
+		},
 		"flag": {
 			"b83cf37335cb4b3da7c9fcb8853beedc": true
+		},
+		"flag.glb": {
+			"b5b8afb89a5b46b68869d73302374928": true
+		},
+		"flag_2.glb": {
+			"b44ce51d6b004e50b82f56ce9e85e8eb": true
 		},
 		"gem": {
 			"bc397bd47e99481db6243d80577a087f": true
@@ -82,8 +97,11 @@
 		"mazeFloor.glb": {
 			"e7205bb4e192484282c0ea63e91abac7": true
 		},
-		"mazeWalls.glb": {
-			"1072cb2a61cc43e7b4b6f373b3bb1fe5": true
+		"orb.glb": {
+			"85cb240a9978493b8db134269a7117f4": true
+		},
+		"rocks1.glb": {
+			"6388aa3daa1144e580e28dc330161dc8": true
 		}
 	},
 	"entitiesByScriptName": {
@@ -138,6 +156,12 @@
 		"Ground_Anchor": {
 			"7cbeb4f4351046cca1dfb5003bebc0f7": true
 		},
+		"MazeWalls": {
+			"ea8e5956f423438c83e5ccd34b66123c": true
+		},
+		"Props": {
+			"8883c06f10b94b3f9efea7c642c8f6ff": true
+		},
 		"ShadowPlane": {
 			"bf1d127bf7234511b3cdc3d5a98af7b0": true
 		},
@@ -153,8 +177,17 @@
 		"ZapparCamera": {
 			"ef58d7d572f244dd99ff82af20165930": true
 		},
+		"bamboo_glb": {
+			"6668e8502d9948b98b797ad56d687dd3": true
+		},
 		"flag": {
 			"b83cf37335cb4b3da7c9fcb8853beedc": true
+		},
+		"flag_2_glb": {
+			"b44ce51d6b004e50b82f56ce9e85e8eb": true
+		},
+		"flag_glb": {
+			"b5b8afb89a5b46b68869d73302374928": true
 		},
 		"gem": {
 			"bc397bd47e99481db6243d80577a087f": true
@@ -162,15 +195,15 @@
 		"mazeFloor_glb": {
 			"e7205bb4e192484282c0ea63e91abac7": true
 		},
-		"mazeWalls_glb": {
-			"1072cb2a61cc43e7b4b6f373b3bb1fe5": true
+		"orb_glb": {
+			"85cb240a9978493b8db134269a7117f4": true
+		},
+		"rocks1_glb": {
+			"6388aa3daa1144e580e28dc330161dc8": true
 		}
 	},
 	"entityConstructorProps": {
 		"0ba8e27369df45ca897731dcb1e39bcf": {
-		},
-		"1072cb2a61cc43e7b4b6f373b3bb1fe5": {
-			"source": "file://./mazeWalls.glb"
 		},
 		"34ca056c7ccf43ed8c5a78282d47af57": {
 		},
@@ -180,7 +213,13 @@
 		},
 		"61e95a6f823a4dce9c865e93216bfac8": {
 		},
+		"6388aa3daa1144e580e28dc330161dc8": {
+			"source": "file://./rocks1.glb"
+		},
 		"646c65b3ea974f3abd78f6ef9eff6696": {
+		},
+		"6668e8502d9948b98b797ad56d687dd3": {
+			"source": "file://./bamboo.glb"
 		},
 		"74e22589ff25426c9dba5990ade3a754": {
 			"startInPlacementMode": true
@@ -195,12 +234,23 @@
 		},
 		"857f9901b65b42c89a3ff04470d70738": {
 		},
+		"85cb240a9978493b8db134269a7117f4": {
+			"source": "file://./orb.glb"
+		},
+		"8883c06f10b94b3f9efea7c642c8f6ff": {
+		},
 		"970d9e2ba0ea4d13beb8ede9673a08fa": {
 		},
 		"a3edba89668642ff9de207484ca2395d": {
 			"source": "file://./startPod.glb"
 		},
 		"a57f5d58e38e4a0b918dcf605ea12736": {
+		},
+		"b44ce51d6b004e50b82f56ce9e85e8eb": {
+			"source": "file://./flag_2.glb"
+		},
+		"b5b8afb89a5b46b68869d73302374928": {
+			"source": "file://./flag.glb"
 		},
 		"b83cf37335cb4b3da7c9fcb8853beedc": {
 			"source": "file://./flag.glb"
@@ -218,6 +268,9 @@
 		},
 		"e7205bb4e192484282c0ea63e91abac7": {
 			"source": "file://./mazeFloor.glb"
+		},
+		"ea8e5956f423438c83e5ccd34b66123c": {
+			"source": "file://./Maze.glb"
 		},
 		"ed11c67097044892b68a40f0856e6f50": {
 		},
@@ -275,18 +328,6 @@
 	"entityProps": {
 		"0ba8e27369df45ca897731dcb1e39bcf": {
 		},
-		"1072cb2a61cc43e7b4b6f373b3bb1fe5": {
-			"position": [
-				0,
-				0,
-				10
-			],
-			"scale": [
-				1,
-				1,
-				1
-			]
-		},
 		"34ca056c7ccf43ed8c5a78282d47af57": {
 		},
 		"3ce8565850694cf592831bdf1ca185e8": {
@@ -300,7 +341,18 @@
 				10
 			]
 		},
+		"6388aa3daa1144e580e28dc330161dc8": {
+			"visible": false
+		},
 		"646c65b3ea974f3abd78f6ef9eff6696": {
+		},
+		"6668e8502d9948b98b797ad56d687dd3": {
+			"position": [
+				0,
+				0,
+				-10
+			],
+			"visible": false
 		},
 		"74e22589ff25426c9dba5990ade3a754": {
 			"placeOnGround": true
@@ -327,6 +379,20 @@
 				0
 			]
 		},
+		"85cb240a9978493b8db134269a7117f4": {
+			"position": [
+				-1.0930469143392954,
+				1,
+				30.009462824212733
+			]
+		},
+		"8883c06f10b94b3f9efea7c642c8f6ff": {
+			"position": [
+				0,
+				0,
+				-20
+			]
+		},
 		"970d9e2ba0ea4d13beb8ede9673a08fa": {
 		},
 		"a3edba89668642ff9de207484ca2395d": {
@@ -334,25 +400,52 @@
 			"position": [
 				0,
 				0,
-				-2
+				-3
 			],
-			"receiveShadow": false
+			"receiveShadow": false,
+			"scale": [
+				1,
+				0.15,
+				1
+			]
 		},
 		"a57f5d58e38e4a0b918dcf605ea12736": {
+		},
+		"b44ce51d6b004e50b82f56ce9e85e8eb": {
+			"visible": false
+		},
+		"b5b8afb89a5b46b68869d73302374928": {
+			"position": [
+				0,
+				0,
+				2
+			],
+			"visible": false
 		},
 		"b83cf37335cb4b3da7c9fcb8853beedc": {
 			"position": [
 				0,
 				0,
-				-2
+				17
 			]
 		},
 		"bc397bd47e99481db6243d80577a087f": {
 			"position": [
 				0,
 				0,
-				-0.5
-			]
+				19
+			],
+			"rotation": [
+				0,
+				0,
+				0
+			],
+			"scale": [
+				1.0027575801307211,
+				1.0027575801307211,
+				1.0027575801307211
+			],
+			"visible": false
 		},
 		"bf1d127bf7234511b3cdc3d5a98af7b0": {
 		},
@@ -377,7 +470,16 @@
 				0,
 				0,
 				10
-			]
+			],
+			"visible": false
+		},
+		"ea8e5956f423438c83e5ccd34b66123c": {
+			"position": [
+				0,
+				0,
+				10
+			],
+			"visible": true
 		},
 		"ed11c67097044892b68a40f0856e6f50": {
 		},
@@ -398,16 +500,6 @@
 			},
 			"scriptName": "DefaultCookieConsent",
 			"type": "@zcomponent/core/lib/components/DefaultCookieConsent#DefaultCookieConsent"
-		},
-		"1072cb2a61cc43e7b4b6f373b3bb1fe5": {
-			"id": "1072cb2a61cc43e7b4b6f373b3bb1fe5",
-			"label": "mazeWalls.glb",
-			"parent": {
-				"id": "c9a0465d592d4e3181ffd1f812d35510",
-				"order": "Zw"
-			},
-			"scriptName": "mazeWalls_glb",
-			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"34ca056c7ccf43ed8c5a78282d47af57": {
 			"id": "34ca056c7ccf43ed8c5a78282d47af57",
@@ -449,6 +541,16 @@
 			"scriptName": "CollidersWalls",
 			"type": "@zcomponent/three/lib/components/Group#Group"
 		},
+		"6388aa3daa1144e580e28dc330161dc8": {
+			"id": "6388aa3daa1144e580e28dc330161dc8",
+			"label": "rocks1.glb",
+			"parent": {
+				"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+				"order": "a2"
+			},
+			"scriptName": "rocks1_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
 		"646c65b3ea974f3abd78f6ef9eff6696": {
 			"id": "646c65b3ea974f3abd78f6ef9eff6696",
 			"label": "Game_6_[Placeholder]  ",
@@ -458,6 +560,16 @@
 			},
 			"scriptName": "Game_6_Placeholder_",
 			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"6668e8502d9948b98b797ad56d687dd3": {
+			"id": "6668e8502d9948b98b797ad56d687dd3",
+			"label": "bamboo.glb",
+			"parent": {
+				"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+				"order": "a3"
+			},
+			"scriptName": "bamboo_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"74e22589ff25426c9dba5990ade3a754": {
 			"id": "74e22589ff25426c9dba5990ade3a754",
@@ -519,6 +631,26 @@
 			"scriptName": "DirectionalLight",
 			"type": "@zcomponent/three/lib/components/lights/DirectionalLight#DirectionalLight"
 		},
+		"85cb240a9978493b8db134269a7117f4": {
+			"id": "85cb240a9978493b8db134269a7117f4",
+			"label": "orb.glb",
+			"parent": {
+				"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+				"order": "Zx"
+			},
+			"scriptName": "orb_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
+		"8883c06f10b94b3f9efea7c642c8f6ff": {
+			"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+			"label": "Props",
+			"parent": {
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "a1"
+			},
+			"scriptName": "Props",
+			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
 		"970d9e2ba0ea4d13beb8ede9673a08fa": {
 			"id": "970d9e2ba0ea4d13beb8ede9673a08fa",
 			"label": "Game_3_[Placeholder] ",
@@ -549,12 +681,32 @@
 			"scriptName": "DefaultEnvironment",
 			"type": "@zcomponent/three/lib/components/environments/DefaultEnvironment#DefaultEnvironment"
 		},
+		"b44ce51d6b004e50b82f56ce9e85e8eb": {
+			"id": "b44ce51d6b004e50b82f56ce9e85e8eb",
+			"label": "flag_2.glb",
+			"parent": {
+				"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+				"order": "a0"
+			},
+			"scriptName": "flag_2_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
+		"b5b8afb89a5b46b68869d73302374928": {
+			"id": "b5b8afb89a5b46b68869d73302374928",
+			"label": "flag.glb",
+			"parent": {
+				"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+				"order": "a1"
+			},
+			"scriptName": "flag_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
 		"b83cf37335cb4b3da7c9fcb8853beedc": {
 			"id": "b83cf37335cb4b3da7c9fcb8853beedc",
 			"label": "flag",
 			"parent": {
-				"id": "c9a0465d592d4e3181ffd1f812d35510",
-				"order": "Zu"
+				"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+				"order": "Zz"
 			},
 			"scriptName": "flag",
 			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
@@ -563,8 +715,8 @@
 			"id": "bc397bd47e99481db6243d80577a087f",
 			"label": "gem",
 			"parent": {
-				"id": "c9a0465d592d4e3181ffd1f812d35510",
-				"order": "Zt"
+				"id": "8883c06f10b94b3f9efea7c642c8f6ff",
+				"order": "Zy"
 			},
 			"scriptName": "gem",
 			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
@@ -618,6 +770,16 @@
 				"order": "Zv"
 			},
 			"scriptName": "mazeFloor_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
+		"ea8e5956f423438c83e5ccd34b66123c": {
+			"id": "ea8e5956f423438c83e5ccd34b66123c",
+			"label": "MazeWalls",
+			"parent": {
+				"id": "c9a0465d592d4e3181ffd1f812d35510",
+				"order": "Zu"
+			},
+			"scriptName": "MazeWalls",
 			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"ed11c67097044892b68a40f0856e6f50": {

@@ -59,15 +59,18 @@ export class GameManager {
             return;
         }
 
-        // Clean up previous active game if needed
+        // Pause and hide previous active game (do not destroy meshes so user can switch back and forth)
         if (this.activeGameId && this.activeGameId !== id) {
             const currentGame = this.games.get(this.activeGameId);
-            if (currentGame && currentGame.isActive) {
-                currentGame.destroy();
+            if (currentGame) {
+                currentGame.isActive = false;
+                currentGame.stopTimer();
+                currentGame.container.visible = false;
             }
         }
 
         this.activeGameId = id;
+        nextGame.container.visible = true;
         console.log(`[GameManager] Active game set to: ${nextGame.name}`);
     }
 

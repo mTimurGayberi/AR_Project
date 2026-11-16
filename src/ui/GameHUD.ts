@@ -35,18 +35,23 @@ export class GameHUD {
     private topBar: HTMLElement | null = null;
     private counterPill: HTMLElement | null = null;
     private restartBtn: HTMLButtonElement | null = null;
+    private gameSwitcherBar: HTMLElement | null = null;
+    private game1Btn: HTMLButtonElement | null = null;
+    private game2Btn: HTMLButtonElement | null = null;
     private alertBanner: HTMLElement | null = null;
     private failVignette: HTMLElement | null = null;
     private hideBannerTimer: any = null;
     private isLaunched: boolean = false;
     private isPlaced: boolean = false;
     private isRestartAllowed: boolean = false;
+    private activeGameNumber: 1 | 2 | null = null;
     // #endregion
 
     // Callbacks for action buttons & placement
     public onRestartClicked?: () => void;
     public onResetAllClicked?: () => void;
     public onPlacementChanged?: (placed: boolean) => void;
+    public onGameSelected?: (gameNumber: 1 | 2) => void;
 
     constructor() {
         if (typeof document !== 'undefined') {
@@ -170,6 +175,50 @@ export class GameHUD {
 
         this.container.appendChild(this.topBar);
 
+        // 3.5 Compact Game Switcher Row (Game 1: Maze | Game 2: Simon)
+        this.gameSwitcherBar = document.createElement('div');
+        this.gameSwitcherBar.id = 'hud-game-switcher';
+        this.gameSwitcherBar.style.display = 'none'; // Shown once placed in room
+        this.gameSwitcherBar.style.alignItems = 'center';
+        this.gameSwitcherBar.style.justifyContent = 'center';
+        this.gameSwitcherBar.style.gap = '6px';
+        this.gameSwitcherBar.style.marginTop = '7px';
+        this.gameSwitcherBar.style.pointerEvents = 'none';
+
+        const createGameTab = (num: 1 | 2, label: string): HTMLButtonElement => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.innerText = label;
+            btn.style.pointerEvents = 'auto';
+            btn.style.touchAction = 'manipulation';
+            btn.style.borderRadius = '18px';
+            btn.style.padding = '5px 12px';
+            btn.style.fontSize = '12px';
+            btn.style.fontWeight = '700';
+            btn.style.lineHeight = '1.2';
+            btn.style.cursor = 'pointer';
+            btn.style.outline = 'none';
+            btn.style.boxShadow = '0 4px 14px rgba(0,0,0,0.5)';
+            (btn.style as any).webkitTapHighlightColor = 'transparent';
+            (btn.style as any).backdropFilter = 'blur(8px)';
+            (btn.style as any).webkitBackdropFilter = 'blur(8px)';
+            btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.setVignetteVisible(false);
+                this.setActiveGameNumber(num);
+                this.onGameSelected?.(num);
+            });
+            return btn;
+        };
+
+        this.game1Btn = createGameTab(1, '🏃 1: Maze');
+        this.game2Btn = createGameTab(2, '🎛️ 2: Simon');
+        this.gameSwitcherBar.appendChild(this.game1Btn);
+        this.gameSwitcherBar.appendChild(this.game2Btn);
+        this.container.appendChild(this.gameSwitcherBar);
+        this.refreshGameSwitcherVisuals();
+
         // 4. Alert Banner with Glowing Border
         this.alertBanner = document.createElement('div');
         this.alertBanner.id = 'hud-banner';
@@ -256,9 +305,16 @@ export class GameHUD {
         if (this.container) {
             this.container.style.display = 'flex';
         }
-        if (!this.isPlaced) {
+        // Always show game selector once launched so the tester can choose which game folder to turn ON!
+        if (this.gameSwitcherBar) {
+            this.gameSwitcherBar.style.display = 'inline-flex';
+        }
+        if (this.activeGameNumber === null) {
             if (this.counterPill) this.counterPill.style.display = 'none';
-            this.notify('🎯 Aim at floor down the hall and tap ✓ to place maze', 'info');
+            this.notify('🎮 Tap [1: Maze] or [2: Simon] above to turn on that game!', 'info');
+        } else if (!this.isPlaced) {
+            if (this.counterPill) this.counterPill.style.display = 'none';
+            this.notify('🎯 Aim at floor and tap ✓ to place game', 'info');
         } else {
             if (this.counterPill) this.counterPill.style.display = 'block';
         }
@@ -266,7 +322,7 @@ export class GameHUD {
     }
 
     /**
-     * Updates visibility once the maze has been placed or when re-entering placement mode.
+     * Updates visibility once the anchor has been placed or when re-entering placement mode.
      */
     public setPlaced(placed: boolean): void {
         const changed = this.isPlaced !== placed;
@@ -279,6 +335,7 @@ export class GameHUD {
         if (!this.isLaunched) {
             if (this.container) this.container.style.display = 'none';
             if (this.counterPill) this.counterPill.style.display = 'none';
+            if (this.gameSwitcherBar) this.gameSwitcherBar.style.display = 'none';
             if (this.restartBtn) this.restartBtn.style.display = 'none';
             return;
         }
@@ -288,12 +345,18 @@ export class GameHUD {
         if (this.container) {
             this.container.style.display = 'flex';
         }
+        if (this.gameSwitcherBar) {
+            this.gameSwitcherBar.style.display = 'inline-flex';
+        }
 
-        if (placed) {
+        if (this.activeGameNumber === null) {
+            if (this.counterPill) this.counterPill.style.display = 'none';
+            this.notify('🎮 Tap [1: Maze] or [2: Simon] above to turn on that game!', 'info');
+        } else if (placed) {
             if (this.counterPill) this.counterPill.style.display = 'block';
         } else {
             if (this.counterPill) this.counterPill.style.display = 'none';
-            this.notify('🎯 Aim at floor down the hall and tap ✓ to place maze', 'info');
+            this.notify('🎯 Aim at floor and tap ✓ to place game', 'info');
         }
 
         if (changed) {
@@ -301,6 +364,40 @@ export class GameHUD {
         }
 
         this.refreshRestartButton();
+    }
+
+    /**
+     * Highlights the active game button in the HUD switcher.
+     */
+    public setActiveGameNumber(gameNumber: 1 | 2): void {
+        this.activeGameNumber = gameNumber;
+        this.refreshGameSwitcherVisuals();
+        if (this.isLaunched) {
+            if (this.isPlaced) {
+                if (this.counterPill) this.counterPill.style.display = 'block';
+            } else {
+                if (this.counterPill) this.counterPill.style.display = 'none';
+                this.notify('🎯 Aim at floor and tap ✓ to place game', 'info');
+            }
+        }
+        this.refreshRestartButton();
+    }
+
+    private refreshGameSwitcherVisuals(): void {
+        const applyTabStyle = (btn: HTMLButtonElement | null, isActive: boolean) => {
+            if (!btn) return;
+            if (isActive) {
+                btn.style.background = 'rgba(14, 116, 144, 0.95)';
+                btn.style.color = '#ffffff';
+                btn.style.border = '1.5px solid #38bdf8';
+            } else {
+                btn.style.background = this.colors.pillBg;
+                btn.style.color = '#e2e8f0';
+                btn.style.border = '1.5px solid rgba(56, 189, 248, 0.4)';
+            }
+        };
+        applyTabStyle(this.game1Btn, this.activeGameNumber === 1);
+        applyTabStyle(this.game2Btn, this.activeGameNumber === 2);
     }
 
     /**
@@ -313,7 +410,7 @@ export class GameHUD {
 
     private refreshRestartButton(): void {
         if (!this.restartBtn) return;
-        const shouldShow = this.isLaunched && this.isPlaced && this.isRestartAllowed;
+        const shouldShow = this.isLaunched && this.isPlaced && this.activeGameNumber !== null && this.isRestartAllowed;
         const targetDisplay = shouldShow ? 'inline-flex' : 'none';
         if (this.restartBtn.style.display !== targetDisplay) {
             this.restartBtn.style.display = targetDisplay;
