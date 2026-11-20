@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BaseMemoryGame } from '../core/BaseMemoryGame';
 import { soundManager } from '../utils/SoundManager';
+import { uiManager } from '../ui/UIManager';
 
 export interface SimonConfig {
     totalRounds?: number;            // Number of rounds to win (default: 3)
@@ -397,6 +398,7 @@ export class SimonGame extends BaseMemoryGame {
         if (!placed) {
             this.stopTimer();
             soundManager.stopOrbLoop();
+            uiManager.memoryUI.setVisible(false);
             this.phase = 'WAITING_TO_START';
             this.hasStartedAnyRound = false;
             this.gemWrapper.visible = false;
@@ -453,7 +455,7 @@ export class SimonGame extends BaseMemoryGame {
         this.phaseTimer = 1.2;
 
         this.syncRestartAvailability(true);
-        this.notify(`🏮 Round 1/${this.totalRounds}: Look around at the 4 Lamps, then press the matching buttons on the Table!`, 'info');
+        uiManager.memoryUI.showSimonStart(this.totalRounds);
     }
     // #endregion
 
@@ -577,20 +579,22 @@ export class SimonGame extends BaseMemoryGame {
             this.triggerCorrectStepFeedback(buttonIndex);
 
             this.currentStepIndex++;
+            uiManager.memoryUI.showSimonPlayerTurn(this.currentRound, this.totalRounds, this.memorySequence.length, this.currentStepIndex);
 
             if (this.currentStepIndex >= this.memorySequence.length) {
                 if (this.currentRound < this.totalRounds) {
+                    const cleared = this.currentRound;
                     this.currentRound++;
                     this.generateSequenceForCurrentRound();
                     this.phase = 'ROUND_TRANSITION';
                     this.phaseTimer = 1.25;
-                    this.notify(`✅ Round ${this.currentRound - 1}/${this.totalRounds} Cleared! Look at the Lamps for Round ${this.currentRound}...`, 'success');
+                    uiManager.memoryUI.showSimonRoundCleared(cleared, this.totalRounds);
                 } else {
                     this.phase = 'REWARD_READY';
                     this.gemWrapper.visible = true;
                     soundManager.startOrbLoop();
                     this.vibrate([120, 60, 160]);
-                    this.notify('🌟 Sequence Mastered! Tap or walk up to the golden Memory Gem above the table!', 'success');
+                    uiManager.memoryUI.showSimonRewardReady();
                 }
             }
         } else {
@@ -599,7 +603,7 @@ export class SimonGame extends BaseMemoryGame {
             this.currentStepIndex = 0;
             this.phase = 'ROUND_TRANSITION';
             this.phaseTimer = 1.5;
-            this.notify(`❌ Wrong color! Look at the Lamps and watch Round ${this.currentRound}/${this.totalRounds} again...`, 'error');
+            uiManager.memoryUI.showSimonWrongColor(this.currentRound, this.totalRounds);
         }
     }
     // #endregion
@@ -653,7 +657,7 @@ export class SimonGame extends BaseMemoryGame {
                     } else {
                         this.phase = 'PLAYER_MEMORY_INPUT';
                         this.currentStepIndex = 0;
-                        this.notify(`👆 Your Turn! Press the ${this.memorySequence.length} matching color buttons on the Table (Round ${this.currentRound}/${this.totalRounds})`, 'info');
+                        uiManager.memoryUI.showSimonPlayerTurn(this.currentRound, this.totalRounds, this.memorySequence.length, 0);
                     }
                 } else {
                     if (this.activeLitIndex >= 0) {
@@ -679,7 +683,7 @@ export class SimonGame extends BaseMemoryGame {
 
     public override onWin(): void {
         super.onWin();
-        this.notify('🎉 VICTORY! You collected the Memory Gem! [Game 1 Complete]', 'success');
+        uiManager.memoryUI.showSimonVictory();
     }
     // #endregion
 }

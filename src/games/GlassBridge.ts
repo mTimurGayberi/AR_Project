@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BaseMemoryGame } from '../core/BaseMemoryGame';
 import { StartZone } from '../core/StartZone';
 import { soundManager } from '../utils/SoundManager';
+import { uiManager } from '../ui/UIManager';
 
 export interface GlassBridgeConfig {
     rows?: number;              // Default: 6 rows
@@ -263,6 +264,7 @@ export class GlassBridgeGame extends BaseMemoryGame {
         } else {
             this.stopTimer();
             soundManager.stopOrbLoop();
+            uiManager.memoryUI.setVisible(false);
             this.phase = 'WAITING_TO_START';
             this.startZone.setVisible(true);
             this.syncRestartAvailability(true);
@@ -299,7 +301,7 @@ export class GlassBridgeGame extends BaseMemoryGame {
         this.syncRestartAvailability(true);
 
         if (this.isPlaced && this.container.visible) {
-            this.notify('🚩 Walk into the green Start Area to reveal the safe Glass Bridge path for 3s!', 'info');
+            uiManager.memoryUI.showBridgeWaitAtStart();
         }
     }
 
@@ -339,7 +341,7 @@ export class GlassBridgeGame extends BaseMemoryGame {
 
         this.triggerMemoryStartFeedback();
         this.syncRestartAvailability(true);
-        this.notify(`👀 Memorize the glowing green tiles! Hiding in ${this.revealDuration.toFixed(0)}s...`, 'info');
+        uiManager.memoryUI.showBridgeRevealCountdown(this.revealDuration.toFixed(0), this.rows);
     }
     // #endregion
 
@@ -370,10 +372,7 @@ export class GlassBridgeGame extends BaseMemoryGame {
             this.returnNotifyTimer += deltaTime;
             if (this.returnNotifyTimer >= 0.6) {
                 this.returnNotifyTimer = 0;
-                this.notify(
-                    `💥 Wrong Tile! Gem vanished! Walk back to green Start Area (${startCheck.distance.toFixed(1)}m)`,
-                    'error'
-                );
+                uiManager.memoryUI.showBridgeReturnDistance(startCheck.distance);
             }
 
             if (startCheck.isInside) {
@@ -387,7 +386,7 @@ export class GlassBridgeGame extends BaseMemoryGame {
             const secsLeft = Math.ceil(Math.max(0, this.revealTimer)).toString();
             if (secsLeft !== this.lastRevealCountdownText && this.revealTimer > 0) {
                 this.lastRevealCountdownText = secsLeft;
-                this.notify(`👀 Memorize the green path! Tiles hide in ${secsLeft}s...`, 'info');
+                uiManager.memoryUI.showBridgeRevealCountdown(secsLeft, this.rows);
             }
 
             if (this.revealTimer <= 0) {
@@ -396,7 +395,7 @@ export class GlassBridgeGame extends BaseMemoryGame {
                 this.resetTimer();
                 this.startTimer();
                 this.vibrate(100);
-                this.notify('🌉 GO! Step only on the safe glass tiles to reach the Gem!', 'success');
+                uiManager.memoryUI.showBridgeGo(this.rows);
             }
             return;
         }
@@ -411,34 +410,23 @@ export class GlassBridgeGame extends BaseMemoryGame {
                 if (dist <= this.stepTriggerRadius) {
                     // 1. Check if player skipped a row (e.g. jumped from start or row 0 directly to row 2, 3, 4...)
                     if (tile.row > this.currentStepIndex) {
-                        this.handleWrongTileStep(
-                            tile,
-                            `💥 SKIPPED ROW ${this.currentStepIndex + 1}! You must step on rows in order (1 → ${this.rows}). Walk back to Start Area!`
-                        );
+                        this.handleWrongTileStep(tile, 'SKIPPED_ROW');
                         return;
                     }
 
                     // 2. If stepping on a previous or current row, check if the tile itself is safe
                     if (!this.validateMemoryStep(tile.row, tile.col)) {
-                        this.handleWrongTileStep(
-                            tile,
-                            '💥 GLASS SHATTERED! Gem vanished! Walk back to the green Start Area to retry.'
-                        );
+                        this.handleWrongTileStep(tile, 'SHATTERED');
                         return;
                     }
 
                     // 3. Safe tile on the exact expected row (`tile.row === this.currentStepIndex`)
                     if (tile.row === this.currentStepIndex && !tile.isStepped) {
                         tile.isStepped = true;
-                        this.currentStepIndex++; // Advance required row index (0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6)
+                        this.currentStepIndex++;
                         this.setTileStyle(tile, this.colors.safeGlass, this.colors.safeRim, 0.85, 0.9);
                         this.triggerCorrectStepFeedback(tile.row);
-
-                        if (this.currentStepIndex >= this.rows) {
-                            this.notify(`🌟 All ${this.rows} Rows Cleared! Step forward to claim the Bridge Gem!`, 'success');
-                        } else {
-                            this.notify(`✅ Safe Tile! (Row ${tile.row + 1}/${this.rows} Complete)`, 'success');
-                        }
+                        uiManager.memoryUI.showBridgeSafeStep(this.currentStepIndex, this.rows);
                     }
                 }
             }
@@ -447,7 +435,6 @@ export class GlassBridgeGame extends BaseMemoryGame {
             if (this.currentStepIndex < this.rows) {
                 const firstRowZ = -1.35;
                 const requiredRowZ = firstRowZ - this.currentStepIndex * this.rowSpacing;
-                // Bridge extends in -Z direction; if player walked more than 0.62m past requiredRowZ without stepping on it:
                 if (this.playerMesh.position.z < requiredRowZ - 0.62) {
                     this.handleBypassBridgeFailure(this.currentStepIndex);
                     return;
@@ -464,7 +451,7 @@ export class GlassBridgeGame extends BaseMemoryGame {
         }
     }
 
-    private handleWrongTileStep(tile: GlassTileEntry, message: string): void {
+    private handleWrongTileStep(tile: GlassTileEntry, reason: 'SHATTERED' | 'SKIPPED_ROW'): void {
         tile.isBroken = true;
         this.setTileStyle(tile, this.colors.brokenGlass, this.colors.brokenRim, 0.9, 1.1);
 
@@ -482,7 +469,11 @@ export class GlassBridgeGame extends BaseMemoryGame {
         this.setPlayerVisualState('fail');
         this.syncRestartAvailability(true);
 
-        this.notify(message, 'error');
+        if (reason === 'SKIPPED_ROW') {
+            uiManager.memoryUI.showBridgeRowSkipped(this.currentStepIndex + 1, this.rows);
+        } else {
+            uiManager.memoryUI.showBridgeShattered();
+        }
     }
 
     private handleBypassBridgeFailure(missedRowIndex: number): void {
@@ -496,15 +487,12 @@ export class GlassBridgeGame extends BaseMemoryGame {
         this.setPlayerVisualState('fail');
         this.syncRestartAvailability(true);
 
-        this.notify(
-            `💥 Missed Row ${missedRowIndex + 1}/${this.rows}! You cannot walk around the bridge. Return to Start Area!`,
-            'error'
-        );
+        uiManager.memoryUI.showBridgeBypassed(missedRowIndex + 1, this.rows);
     }
 
     public override onWin(): void {
         super.onWin();
-        this.notify('🎉 VICTORY! You crossed the Glass Bridge and claimed the Bridge Gem!', 'success');
+        uiManager.memoryUI.showBridgeVictory();
     }
 
     private setPlayerVisualState(state: 'normal' | 'fail'): void {

@@ -53,7 +53,7 @@ export class GameHUD {
     private activeGameNumber: number | null = null;
     private dropdownOptions: GameDropdownOption[] = [
         { gameNumber: 1,  label: '1. 🏮 Simon Lanterns [Memory]',    enabled: true },
-        { gameNumber: 2,  label: '2. 🥷 Shuriken Throw [Shooting]',  enabled: false },
+        { gameNumber: 2,  label: '2. 🥷 Shuriken Throw [Shooting]',  enabled: true },
         { gameNumber: 3,  label: '3. 🖼️ Paintings [Puzzle]',         enabled: false },
         { gameNumber: 4,  label: '4. 🌉 Glass Bridge [Memory]',      enabled: true },
         { gameNumber: 5,  label: '5. 🕯️ Candle Spark [Shooting]',    enabled: false },

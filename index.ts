@@ -3,8 +3,10 @@ import { initialize, useScene, useCamera } from "@zcomponent/three";
 import { default as Scene } from "./Scene.zcomp";
 import { gameManager } from "./src/utils/GameManager";
 import { SimonGame } from "./src/games/SimonGame";
+import { ShurikenGame } from "./src/games/ShurikenGame";
 import { GlassBridgeGame } from "./src/games/GlassBridge";
-import { GameHUD, type GameDropdownOption } from "./src/ui/GameHUD";
+import { GameDropdownOption } from "./src/ui/GameHUD";
+import { uiManager } from "./src/ui/UIManager";
 import { soundManager } from "./src/utils/SoundManager";
 import type { BaseMiniGame } from "./src/core/BaseMiniGame";
 // import { MazeGame } from "./src/MazeGame"; // Muted / parked on the side
@@ -32,13 +34,18 @@ interface GameCatalogEntry {
     folderNode?: any;
 }
 
-// 1. Create GameHUD
-const hud = new GameHUD();
+// 1. Access Central UIManager & Global GameHUD
+const hud = uiManager.hud;
 
 // 2. Instantiate Active Mini-Games (MazeGame is muted/parked on the side)
 const simonGame = new SimonGame({
     totalRounds: 3,
     startingSequenceLength: 3 // Round 1 = 3 flashes, Round 2 = 4, Round 3 = 5
+});
+
+const shurikenGame = new ShurikenGame({
+    maxAmmo: 12,
+    projectileSpeed: 12.5
 });
 
 const glassBridgeGame = new GlassBridgeGame({
@@ -65,7 +72,7 @@ const GAME_CATALOG: GameCatalogEntry[] = [
         label: '2. 🥷 Shuriken Throw [Shooting]',
         column: 'SHOOTING',
         folderCandidates: ['Game_2_Shuriken', 'Game_3_Placeholder_', 'Game_3_[Placeholder] ', 'Game_3_[Placeholder]'],
-        game: null
+        game: shurikenGame
     },
     {
         gameNumber: 3,
@@ -299,6 +306,7 @@ const findCatalogEntry = (num: number): GameCatalogEntry | undefined => {
 // 6. Switch active game when selected from the 10-game HUD Dropdown
 hud.onGameSelected = (gameNumber: number) => {
     soundManager.stopAllLoops();
+    uiManager.hideAllSubGameUIs();
 
     const selectedEntry = findCatalogEntry(gameNumber);
     if (!selectedEntry || !selectedEntry.game) {
@@ -316,7 +324,11 @@ hud.onGameSelected = (gameNumber: number) => {
     for (const entry of GAME_CATALOG) {
         if (entry.gameNumber !== gameNumber) {
             setFolderVisible(entry.folderNode, false);
-            if (entry.game) entry.game.container.visible = false;
+            if (entry.game) {
+                entry.game.isActive = false;
+                entry.game.container.visible = false;
+                (entry.game as any).updateShootingUIVisibility?.();
+            }
         }
     }
 
