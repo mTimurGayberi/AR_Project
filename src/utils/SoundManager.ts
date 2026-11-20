@@ -24,12 +24,12 @@ export type SoundKey =
     | 'wall_collision';
 
 const SOUND_URLS: Record<SoundKey, string> = {
-    level_start:    new URL('./sounds/level_start.mp3', import.meta.url).toString(),
-    level_finish:   new URL('./sounds/level_finish.mp3', import.meta.url).toString(),
-    orb_loop:       new URL('./sounds/orb_loop.mp3', import.meta.url).toString(),
-    orb_pick_up:    new URL('./sounds/orb_pick_up.mp3', import.meta.url).toString(),
-    ambientMaze:    new URL('./sounds/ambientMaze.mp3', import.meta.url).toString(),
-    wall_collision: new URL('./sounds/wall_collision.mp3', import.meta.url).toString(),
+    level_start:    new URL('../sounds/level_start.mp3', import.meta.url).toString(),
+    level_finish:   new URL('../sounds/level_finish.mp3', import.meta.url).toString(),
+    orb_loop:       new URL('../sounds/orb_loop.mp3', import.meta.url).toString(),
+    orb_pick_up:    new URL('../sounds/orb_pick_up.mp3', import.meta.url).toString(),
+    ambientMaze:    new URL('../sounds/ambientMaze.mp3', import.meta.url).toString(),
+    wall_collision: new URL('../sounds/wall_collision.mp3', import.meta.url).toString(),
 };
 
 interface ActiveLoop {

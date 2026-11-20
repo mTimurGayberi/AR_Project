@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { BaseMiniGame } from './BaseMiniGame';
-import { StartZone } from './core/StartZone';
-import { CollectibleItem } from './core/CollectibleItem';
-import { soundManager } from './SoundManager';
+import { BaseMiniGame } from '../core/BaseMiniGame';
+import { StartZone } from '../core/StartZone';
+import { CollectibleItem } from '../core/CollectibleItem';
+import { soundManager } from '../utils/SoundManager';
 
 export interface MazeConfig {
     wallGracePeriod?: number;   // Duration in seconds (e.g. 2.0s) before penalty reset
@@ -381,7 +381,7 @@ export class MazeGame extends BaseMiniGame {
         this.syncRestartAvailability(true);
     }
 
-    public override notify(message: string, type: import('./BaseMiniGame').NotificationType = 'info'): void {
+    public override notify(message: string, type: import('../core/BaseMiniGame').NotificationType = 'info'): void {
         super.notify(message, type);
     }
     // #endregion

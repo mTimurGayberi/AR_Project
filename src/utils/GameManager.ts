@@ -1,7 +1,7 @@
 import { QuestManager } from './QuestManager';
 import { SaveManager } from './SaveManager';
 import { PlayFabService, playFabService } from './PlayFabService';
-import type { BaseMiniGame } from './BaseMiniGame';
+import type { BaseMiniGame } from '../core/BaseMiniGame';
 
 export class GameManager {
     private static instance: GameManager;

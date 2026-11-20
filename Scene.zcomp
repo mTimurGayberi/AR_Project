@@ -28,7 +28,7 @@
 		"Game_1_Maze": {
 			"c9a0465d592d4e3181ffd1f812d35510": true
 		},
-		"Game_2_[Placeholder]": {
+		"Game_2_Simon": {
 			"34ca056c7ccf43ed8c5a78282d47af57": true
 		},
 		"Game_3_[Placeholder] ": {
@@ -94,6 +94,9 @@
 		"gem": {
 			"bc397bd47e99481db6243d80577a087f": true
 		},
+		"lantern.glb": {
+			"fc841e8c912b41dab161d8b7d997e587": true
+		},
 		"mazeFloor.glb": {
 			"e7205bb4e192484282c0ea63e91abac7": true
 		},
@@ -129,7 +132,7 @@
 		"Game_1_Maze": {
 			"c9a0465d592d4e3181ffd1f812d35510": true
 		},
-		"Game_2_Placeholder": {
+		"Game_2_Simon": {
 			"34ca056c7ccf43ed8c5a78282d47af57": true
 		},
 		"Game_3_Placeholder_": {
@@ -191,6 +194,9 @@
 		},
 		"gem": {
 			"bc397bd47e99481db6243d80577a087f": true
+		},
+		"lantern_glb": {
+			"fc841e8c912b41dab161d8b7d997e587": true
 		},
 		"mazeFloor_glb": {
 			"e7205bb4e192484282c0ea63e91abac7": true
@@ -277,6 +283,9 @@
 		"ef58d7d572f244dd99ff82af20165930": {
 		},
 		"f5a03bfbdcad4b5ab052073465fc7632": {
+		},
+		"fc841e8c912b41dab161d8b7d997e587": {
+			"source": "file://./lantern.glb"
 		}
 	},
 	"entityPropOverrides": {
@@ -459,9 +468,10 @@
 			],
 			"rotation": [
 				0,
-				3.141592653589793,
+				0,
 				0
-			]
+			],
+			"visible": false
 		},
 		"d9032989194b452780c5b695a4c33625": {
 		},
@@ -487,6 +497,23 @@
 			"far": 2000
 		},
 		"f5a03bfbdcad4b5ab052073465fc7632": {
+		},
+		"fc841e8c912b41dab161d8b7d997e587": {
+			"position": [
+				0,
+				1,
+				0
+			],
+			"rotation": [
+				0,
+				-1.5,
+				0
+			],
+			"scale": [
+				0.5,
+				0.5,
+				0.5
+			]
 		}
 	},
 	"id": "5d4513e843574c04847bf1474912090f",
@@ -503,12 +530,12 @@
 		},
 		"34ca056c7ccf43ed8c5a78282d47af57": {
 			"id": "34ca056c7ccf43ed8c5a78282d47af57",
-			"label": "Game_2_[Placeholder]",
+			"label": "Game_2_Simon",
 			"parent": {
-				"id": "7cbeb4f4351046cca1dfb5003bebc0f7",
-				"order": "a0"
+				"id": "74e22589ff25426c9dba5990ade3a754",
+				"order": "Zz"
 			},
-			"scriptName": "Game_2_Placeholder",
+			"scriptName": "Game_2_Simon",
 			"type": "@zcomponent/three/lib/components/Group#Group"
 		},
 		"3ce8565850694cf592831bdf1ca185e8": {
@@ -811,6 +838,16 @@
 			},
 			"scriptName": "Game_5_Placeholder_",
 			"type": "@zcomponent/three/lib/components/Group#Group"
+		},
+		"fc841e8c912b41dab161d8b7d997e587": {
+			"id": "fc841e8c912b41dab161d8b7d997e587",
+			"label": "lantern.glb",
+			"parent": {
+				"id": "34ca056c7ccf43ed8c5a78282d47af57",
+				"order": "a0"
+			},
+			"scriptName": "lantern_glb",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"root": {
 			"id": "root",

@@ -6,8 +6,8 @@ import { DefaultEnvironment as DefaultEnvironment_2 } from "@zcomponent/three/li
 import { DefaultLoader as DefaultLoader_3 } from "@zcomponent/core/lib/components/DefaultLoader";
 import { DirectionalLight as DirectionalLight_4 } from "@zcomponent/three/lib/components/lights/DirectionalLight";
 import { GroundAnchorGroup as GroundAnchorGroup_5 } from "@zcomponent/zappar-three/lib/components/anchorgroups/GroundAnchorGroup";
-import { ShadowPlane as ShadowPlane_6 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
-import { GLTF as GLTF_7 } from "@zcomponent/three/lib/components/models/GLTF";
+import { GLTF as GLTF_6 } from "@zcomponent/three/lib/components/models/GLTF";
+import { ShadowPlane as ShadowPlane_7 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
 import { UserPlacementAnchorGroup as UserPlacementAnchorGroup_8 } from "@zcomponent/zappar-three/lib/components/anchorgroups/UserPlacementAnchorGroup";
 import { WorldTracker as WorldTracker_9 } from "@zcomponent/zappar-three/lib/components/trackers/WorldTracker";
 import { ZapparCamera as ZapparCamera_10 } from "@zcomponent/zappar-three/lib/components/cameras/Camera";
@@ -66,7 +66,7 @@ declare class Comp extends ZComponent {
 
 			}
 		},
-		Game_2_Placeholder: Group_0 & {
+		Game_2_Simon: Group_0 & {
 			behaviors: {
 
 			}
@@ -111,17 +111,22 @@ declare class Comp extends ZComponent {
 
 			}
 		},
+		MazeWalls: GLTF_6 & {
+			behaviors: {
+
+			}
+		},
 		Props: Group_0 & {
 			behaviors: {
 
 			}
 		},
-		ShadowPlane: ShadowPlane_6 & {
+		ShadowPlane: ShadowPlane_7 & {
 			behaviors: {
 
 			}
 		},
-		StartPad: GLTF_7 & {
+		StartPad: GLTF_6 & {
 			behaviors: {
 
 			}
@@ -141,47 +146,47 @@ declare class Comp extends ZComponent {
 
 			}
 		},
-		bamboo_glb: GLTF_7 & {
+		bamboo_glb: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		flag: GLTF_7 & {
+		flag: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		flag_2_glb: GLTF_7 & {
+		flag_2_glb: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		flag_glb: GLTF_7 & {
+		flag_glb: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		gem: GLTF_7 & {
+		gem: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		mazeFloor_glb: GLTF_7 & {
+		mazeFloor_glb: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		orb_glb: GLTF_7 & {
+		orb_glb: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		rocks1_glb: GLTF_7 & {
+		rocks1_glb: GLTF_6 & {
 			behaviors: {
 
 			}
 		},
-		MazeWalls: GLTF_7 & {
+		lantern_glb: GLTF_6 & {
 			behaviors: {
 
 			}

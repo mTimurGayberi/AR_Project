@@ -1,14 +1,21 @@
-import type { NotificationType } from '../BaseMiniGame';
+import type { NotificationType } from '../core/BaseMiniGame';
+
+export interface GameDropdownOption {
+    gameNumber: number;
+    label: string;
+    enabled: boolean;
+}
 
 /**
  * GameHUD
  * 
  * Reusable, high-contrast WebAR Heads-Up Display (HUD) for all 10 mini-games.
  * Features:
- * - Highlighted status badges for Items, Timer, and Walls.
+ * - Highlighted status badges for Items and Timer.
+ * - Compact 10-game Dropdown selector for testing any mini-game.
  * - Dynamic notification banner with high-contrast text and glowing borders.
- * - Full-screen red loss vignette on wall penalties.
- * - Touch-friendly action buttons (Restart Trial, Reset Quest).
+ * - Full-screen red loss vignette on penalties.
+ * - Touch-friendly top-right Restart button.
  */
 export class GameHUD {
     // #region UI STYLING & HIGHLIGHT CONTROLS
@@ -36,22 +43,33 @@ export class GameHUD {
     private counterPill: HTMLElement | null = null;
     private restartBtn: HTMLButtonElement | null = null;
     private gameSwitcherBar: HTMLElement | null = null;
-    private game1Btn: HTMLButtonElement | null = null;
-    private game2Btn: HTMLButtonElement | null = null;
+    private gameSelectEl: HTMLSelectElement | null = null;
     private alertBanner: HTMLElement | null = null;
     private failVignette: HTMLElement | null = null;
     private hideBannerTimer: any = null;
     private isLaunched: boolean = false;
     private isPlaced: boolean = false;
     private isRestartAllowed: boolean = false;
-    private activeGameNumber: 1 | 2 | null = null;
+    private activeGameNumber: number | null = null;
+    private dropdownOptions: GameDropdownOption[] = [
+        { gameNumber: 1,  label: '1. 🏮 Simon Lanterns [Memory]',    enabled: true },
+        { gameNumber: 2,  label: '2. 🥷 Shuriken Throw [Shooting]',  enabled: false },
+        { gameNumber: 3,  label: '3. 🖼️ Paintings [Puzzle]',         enabled: false },
+        { gameNumber: 4,  label: '4. 🌉 Glass Bridge [Memory]',      enabled: true },
+        { gameNumber: 5,  label: '5. 🕯️ Candle Spark [Shooting]',    enabled: false },
+        { gameNumber: 6,  label: '6. 📦 Boxes [Puzzle]',             enabled: false },
+        { gameNumber: 7,  label: '7. 🍜 Cooking [Memory]',           enabled: false },
+        { gameNumber: 8,  label: '8. 🍙 Feed the Master [Shooting]', enabled: false },
+        { gameNumber: 9,  label: '9. 🧩 Puzzle [Puzzle]',            enabled: false },
+        { gameNumber: 10, label: '10. 🔥 Test Fireball [Shooting]',  enabled: false },
+    ];
     // #endregion
 
     // Callbacks for action buttons & placement
     public onRestartClicked?: () => void;
     public onResetAllClicked?: () => void;
     public onPlacementChanged?: (placed: boolean) => void;
-    public onGameSelected?: (gameNumber: 1 | 2) => void;
+    public onGameSelected?: (gameNumber: number) => void;
 
     constructor() {
         if (typeof document !== 'undefined') {
@@ -175,49 +193,53 @@ export class GameHUD {
 
         this.container.appendChild(this.topBar);
 
-        // 3.5 Compact Game Switcher Row (Game 1: Maze | Game 2: Simon)
+        // 3.5 Compact 10-Game Dropdown Selector
         this.gameSwitcherBar = document.createElement('div');
         this.gameSwitcherBar.id = 'hud-game-switcher';
-        this.gameSwitcherBar.style.display = 'none'; // Shown once placed in room
+        this.gameSwitcherBar.style.display = 'none'; // Shown as soon as [Launch] is tapped
         this.gameSwitcherBar.style.alignItems = 'center';
         this.gameSwitcherBar.style.justifyContent = 'center';
-        this.gameSwitcherBar.style.gap = '6px';
         this.gameSwitcherBar.style.marginTop = '7px';
         this.gameSwitcherBar.style.pointerEvents = 'none';
+        this.gameSwitcherBar.style.width = '100%';
 
-        const createGameTab = (num: 1 | 2, label: string): HTMLButtonElement => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.innerText = label;
-            btn.style.pointerEvents = 'auto';
-            btn.style.touchAction = 'manipulation';
-            btn.style.borderRadius = '18px';
-            btn.style.padding = '5px 12px';
-            btn.style.fontSize = '12px';
-            btn.style.fontWeight = '700';
-            btn.style.lineHeight = '1.2';
-            btn.style.cursor = 'pointer';
-            btn.style.outline = 'none';
-            btn.style.boxShadow = '0 4px 14px rgba(0,0,0,0.5)';
-            (btn.style as any).webkitTapHighlightColor = 'transparent';
-            (btn.style as any).backdropFilter = 'blur(8px)';
-            (btn.style as any).webkitBackdropFilter = 'blur(8px)';
-            btn.addEventListener('pointerdown', (e) => e.stopPropagation());
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
+        this.gameSelectEl = document.createElement('select');
+        this.gameSelectEl.id = 'hud-game-select';
+        this.gameSelectEl.style.pointerEvents = 'auto';
+        this.gameSelectEl.style.touchAction = 'manipulation';
+        this.gameSelectEl.style.background = this.colors.pillBg;
+        this.gameSelectEl.style.color = '#f8fafc';
+        this.gameSelectEl.style.border = '1.5px solid #38bdf8';
+        this.gameSelectEl.style.borderRadius = '20px';
+        this.gameSelectEl.style.padding = '7px 14px';
+        this.gameSelectEl.style.fontSize = '13px';
+        this.gameSelectEl.style.fontWeight = '700';
+        this.gameSelectEl.style.lineHeight = '1.2';
+        this.gameSelectEl.style.cursor = 'pointer';
+        this.gameSelectEl.style.outline = 'none';
+        this.gameSelectEl.style.maxWidth = '290px';
+        this.gameSelectEl.style.boxShadow = '0 4px 16px rgba(0,0,0,0.6)';
+        (this.gameSelectEl.style as any).webkitTapHighlightColor = 'transparent';
+        (this.gameSelectEl.style as any).backdropFilter = 'blur(10px)';
+        (this.gameSelectEl.style as any).webkitBackdropFilter = 'blur(10px)';
+
+        this.populateDropdownOptions();
+
+        this.gameSelectEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+        this.gameSelectEl.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+        this.gameSelectEl.addEventListener('click', (e) => e.stopPropagation());
+        this.gameSelectEl.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const val = parseInt(this.gameSelectEl?.value || '', 10);
+            if (!isNaN(val) && val >= 1) {
                 this.setVignetteVisible(false);
-                this.setActiveGameNumber(num);
-                this.onGameSelected?.(num);
-            });
-            return btn;
-        };
+                this.setActiveGameNumber(val);
+                this.onGameSelected?.(val);
+            }
+        });
 
-        this.game1Btn = createGameTab(1, '🏃 1: Maze');
-        this.game2Btn = createGameTab(2, '🎛️ 2: Simon');
-        this.gameSwitcherBar.appendChild(this.game1Btn);
-        this.gameSwitcherBar.appendChild(this.game2Btn);
+        this.gameSwitcherBar.appendChild(this.gameSelectEl);
         this.container.appendChild(this.gameSwitcherBar);
-        this.refreshGameSwitcherVisuals();
 
         // 4. Alert Banner with Glowing Border
         this.alertBanner = document.createElement('div');
@@ -311,7 +333,7 @@ export class GameHUD {
         }
         if (this.activeGameNumber === null) {
             if (this.counterPill) this.counterPill.style.display = 'none';
-            this.notify('🎮 Tap [1: Maze] or [2: Simon] above to turn on that game!', 'info');
+            this.notify('🎮 Choose a Mini-Game from the dropdown above to begin!', 'info');
         } else if (!this.isPlaced) {
             if (this.counterPill) this.counterPill.style.display = 'none';
             this.notify('🎯 Aim at floor and tap ✓ to place game', 'info');
@@ -351,7 +373,7 @@ export class GameHUD {
 
         if (this.activeGameNumber === null) {
             if (this.counterPill) this.counterPill.style.display = 'none';
-            this.notify('🎮 Tap [1: Maze] or [2: Simon] above to turn on that game!', 'info');
+            this.notify('🎮 Choose a Mini-Game from the dropdown above to begin!', 'info');
         } else if (placed) {
             if (this.counterPill) this.counterPill.style.display = 'block';
         } else {
@@ -367,11 +389,46 @@ export class GameHUD {
     }
 
     /**
-     * Highlights the active game button in the HUD switcher.
+     * Configures the 10-game dropdown options dynamically from the entry point (`index.ts`).
      */
-    public setActiveGameNumber(gameNumber: 1 | 2): void {
+    public setGameOptions(options: GameDropdownOption[]): void {
+        this.dropdownOptions = options;
+        this.populateDropdownOptions();
+    }
+
+    private populateDropdownOptions(): void {
+        if (!this.gameSelectEl) return;
+        this.gameSelectEl.innerHTML = '';
+
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.value = '';
+        placeholderOpt.innerText = '🎮 Select Mini-Game (1–10)...';
+        placeholderOpt.disabled = true;
+        placeholderOpt.selected = this.activeGameNumber === null;
+        placeholderOpt.style.background = '#0f172a';
+        placeholderOpt.style.color = '#94a3b8';
+        this.gameSelectEl.appendChild(placeholderOpt);
+
+        for (const opt of this.dropdownOptions) {
+            const optionEl = document.createElement('option');
+            optionEl.value = String(opt.gameNumber);
+            optionEl.innerText = opt.enabled ? opt.label : `${opt.label} (Soon)`;
+            optionEl.disabled = !opt.enabled;
+            optionEl.selected = this.activeGameNumber === opt.gameNumber;
+            optionEl.style.background = '#0f172a';
+            optionEl.style.color = opt.enabled ? '#f8fafc' : '#64748b';
+            this.gameSelectEl.appendChild(optionEl);
+        }
+    }
+
+    /**
+     * Updates the selected game in the HUD dropdown.
+     */
+    public setActiveGameNumber(gameNumber: number): void {
         this.activeGameNumber = gameNumber;
-        this.refreshGameSwitcherVisuals();
+        if (this.gameSelectEl && this.gameSelectEl.value !== String(gameNumber)) {
+            this.gameSelectEl.value = String(gameNumber);
+        }
         if (this.isLaunched) {
             if (this.isPlaced) {
                 if (this.counterPill) this.counterPill.style.display = 'block';
@@ -381,23 +438,6 @@ export class GameHUD {
             }
         }
         this.refreshRestartButton();
-    }
-
-    private refreshGameSwitcherVisuals(): void {
-        const applyTabStyle = (btn: HTMLButtonElement | null, isActive: boolean) => {
-            if (!btn) return;
-            if (isActive) {
-                btn.style.background = 'rgba(14, 116, 144, 0.95)';
-                btn.style.color = '#ffffff';
-                btn.style.border = '1.5px solid #38bdf8';
-            } else {
-                btn.style.background = this.colors.pillBg;
-                btn.style.color = '#e2e8f0';
-                btn.style.border = '1.5px solid rgba(56, 189, 248, 0.4)';
-            }
-        };
-        applyTabStyle(this.game1Btn, this.activeGameNumber === 1);
-        applyTabStyle(this.game2Btn, this.activeGameNumber === 2);
     }
 
     /**

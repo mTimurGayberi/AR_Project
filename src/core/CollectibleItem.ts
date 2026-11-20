@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { soundManager } from '../SoundManager';
+import { soundManager } from '../utils/SoundManager';
 
 export interface CollectibleConfig {
     id?: string;

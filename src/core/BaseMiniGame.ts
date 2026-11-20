@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gameManager } from './GameManager';
+import { gameManager } from '../utils/GameManager';
 
 export type NotificationType = 'info' | 'warning' | 'success' | 'error';
 
